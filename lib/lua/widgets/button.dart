@@ -14,7 +14,7 @@ import 'text.dart';
 ///     onPressed = function() print("Clicked!") end
 ///   }
 @LuaWidget(name: 'Button')
-class LuaButtonWidget {
+class LuaButtonWidget implements LuaWidgetInterface {
   /// The text to display on the button
   @LuaProperty()
   final String? text;
@@ -26,7 +26,7 @@ class LuaButtonWidget {
   
   /// Child widget (alternative to text)
   @LuaProperty()
-  final LuaWidget? child;
+  final LuaWidgetInterface? child;
   
   const LuaButtonWidget({
     this.text,

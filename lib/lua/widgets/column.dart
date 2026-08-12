@@ -20,7 +20,7 @@ import 'widget.dart';
 ///     }
 ///   }
 @LuaWidget(name: 'Column', hasChildren: true)
-class LuaColumnWidget {
+class LuaColumnWidget implements LuaWidgetInterface {
   /// The amount of space between children
   @LuaProperty()
   final double? spacing;
@@ -35,7 +35,7 @@ class LuaColumnWidget {
   
   /// The list of child widgets
   @LuaChildren()
-  final List<LuaWidget>? children;
+  final List<LuaWidgetInterface>? children;
   
   const LuaColumnWidget({
     this.spacing,

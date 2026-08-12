@@ -15,7 +15,7 @@ import '../types.dart';
 ///     weight = "bold"
 ///   }
 @LuaWidget(name: 'Text')
-class LuaTextWidget {
+class LuaTextWidget implements LuaWidgetInterface {
   /// The text to display (required)
   @LuaProperty(required: true)
   final String text;

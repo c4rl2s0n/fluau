@@ -1,8 +1,8 @@
 #!/usr/bin/env dart
 
 /// Command-line entry point for the Lua plugin code generator
-import 'package:lua_plugin_codegen/codegen.dart';
+import '../lib/main.dart' as codegen;
 
 void main(List<String> args) {
-  main(args);
+  codegen.main(args);
 }

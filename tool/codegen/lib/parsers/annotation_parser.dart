@@ -13,6 +13,7 @@ import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
+import 'package:analyzer/dart/constant/value.dart';
 import 'package:path/path.dart' as path;
 
 import '../models/widget_info.dart';
@@ -67,15 +68,15 @@ class AnnotationParser {
     String filePath,
   ) async {
     // Get the analysis result for this file
-    final result = context.contextFor(filePath).currentSession
-        .getResolvedLibrary(filePath);
+    final session = context.contextFor(filePath).currentSession;
+    final result = await session.getResolvedLibrary(filePath);
 
     if (result is! ResolvedLibraryResult) {
       print('Warning: Could not resolve library for $filePath');
       return [];
     }
 
-    final library = result.library;
+    final library = result.element;
     if (library == null) {
       print('Warning: No library found for $filePath');
       return [];
@@ -83,7 +84,17 @@ class AnnotationParser {
 
     // Find all classes with LuaWidget or LuaData annotations
     final classes = <LuaClassInfo>[];
-    for (final element in library.definingCompilationUnit.topLevelElements) {
+    
+    // Get all top-level elements from the defining compilation unit
+    final unit = library.definingCompilationUnit;
+    final allElements = [
+      ...unit.classes,
+      ...unit.enums,
+      ...unit.functions,
+      ...unit.topLevelVariables,
+    ];
+    
+    for (final element in allElements) {
       if (element is ClassElement) {
         final luaClass = _parseClass(element, filePath);
         if (luaClass != null) {
@@ -107,14 +118,14 @@ class AnnotationParser {
       if (constant?.type?.getDisplayString(withNullability: false) == 'LuaWidget') {
         isWidget = true;
         // Extract annotation parameters
-        final namedArgs = constant?.toMap() ?? {};
-        luaName = namedArgs['name']?.toStringValue();
-        hasChildren = namedArgs['hasChildren']?.toBoolValue() ?? false;
+        final namedArgs = _getAnnotationNamedArgs(constant);
+        luaName = namedArgs['name'] as String?;
+        hasChildren = namedArgs['hasChildren'] as bool? ?? false;
         break;
       } else if (constant?.type?.getDisplayString(withNullability: false) == 'LuaData') {
         isWidget = false;
-        final namedArgs = constant?.toMap() ?? {};
-        luaName = namedArgs['name']?.toStringValue();
+        final namedArgs = _getAnnotationNamedArgs(constant);
+        luaName = namedArgs['name'] as String?;
         break;
       }
     }
@@ -126,8 +137,8 @@ class AnnotationParser {
         final constant = annotation.computeConstantValue();
         if (constant?.type?.getDisplayString(withNullability: false) == 'LuaData') {
           isWidget = false;
-          final namedArgs = constant?.toMap() ?? {};
-          luaName = namedArgs['name']?.toStringValue();
+          final namedArgs = _getAnnotationNamedArgs(constant);
+          luaName = namedArgs['name'] as String?;
           break;
         }
       }
@@ -186,20 +197,20 @@ class AnnotationParser {
 
       if (typeName == 'LuaProperty') {
         annotationName = 'LuaProperty';
-        final namedArgs = constant?.toMap() ?? {};
-        required = namedArgs['required']?.toBoolValue() ?? false;
-        defaultValue = namedArgs['defaultValue']?.toStringValue();
-        propertyName = namedArgs['name']?.toStringValue();
+        final namedArgs = _getAnnotationNamedArgs(constant);
+        required = namedArgs['required'] as bool? ?? false;
+        defaultValue = namedArgs['defaultValue'] as String?;
+        propertyName = namedArgs['name'] as String?;
         break;
       } else if (typeName == 'LuaChildren') {
         annotationName = 'LuaChildren';
-        final namedArgs = constant?.toMap() ?? {};
-        propertyName = namedArgs['name']?.toStringValue();
+        final namedArgs = _getAnnotationNamedArgs(constant);
+        propertyName = namedArgs['name'] as String?;
         break;
       } else if (typeName == 'LuaCallback') {
         annotationName = 'LuaCallback';
-        final namedArgs = constant?.toMap() ?? {};
-        propertyName = namedArgs['name']?.toStringValue();
+        final namedArgs = _getAnnotationNamedArgs(constant);
+        propertyName = namedArgs['name'] as String?;
         break;
       }
     }
@@ -222,7 +233,7 @@ class AnnotationParser {
     List<String>? enumValues;
     if (typeElement is EnumElement) {
       isEnum = true;
-      enumValues = typeElement.constants.map((c) => c.name).toList();
+      enumValues = _getEnumValues(field.type);
     }
 
     // Check if it's a LuaData class (custom data class)
@@ -243,12 +254,21 @@ class AnnotationParser {
     // Check if it's a LuaWidget class (child widget)
     bool isChildWidget = false;
     bool isChildList = false;
-    if (typeElement is ClassElement) {
+    
+    // Check if the type is LuaWidgetInterface (our base interface)
+    if (field.type.element?.name == 'LuaWidgetInterface') {
+      // Check if it's a List<LuaWidgetInterface>
+      if (field.type is InterfaceType && field.type.element?.name == 'List') {
+        isChildList = true;
+      } else {
+        isChildWidget = true;
+      }
+    } else if (typeElement is ClassElement) {
       for (final annotation in typeElement.metadata) {
         final constant = annotation.computeConstantValue();
         if (constant?.type?.getDisplayString(withNullability: false) == 'LuaWidget') {
           // Check if it's a List<LuaWidget>
-          if (field.type is InterfaceType && field.type.element.name == 'List') {
+          if (field.type is InterfaceType && field.type.element?.name == 'List') {
             isChildList = true;
           } else {
             isChildWidget = true;
@@ -317,6 +337,72 @@ class AnnotationParser {
       default:
         // Fallback to String for unknown types
         return '$prefix String$suffix';
+    }
+  }
+
+  /// Get named arguments from an annotation constant value
+  Map<String, dynamic> _getAnnotationNamedArgs(DartObject? constant) {
+    if (constant == null) return {};
+    
+    final result = <String, dynamic>{};
+    
+    // In analyzer 7.x, we need to use getField to access annotation parameters
+    // But we don't know the field names in advance
+    // For now, we'll try common field names: name, required, defaultValue, hasChildren
+    final fieldNames = ['name', 'required', 'defaultValue', 'hasChildren'];
+    for (final fieldName in fieldNames) {
+      final value = constant.getField(fieldName);
+      if (value != null) {
+        result[fieldName] = _dartObjectToValue(value);
+      }
+    }
+    
+    return result;
+  }
+
+  /// Convert a DartObject to a Dart value
+  dynamic _dartObjectToValue(DartObject? obj) {
+    if (obj == null) return null;
+    
+    if (obj.isNull) return null;
+    
+    // Try to get values in order of preference
+    // Check the type to determine which method to call
+    final type = obj.type?.getDisplayString(withNullability: false);
+    
+    switch (type) {
+      case 'String':
+      case 'string':
+        return obj.toStringValue();
+      case 'int':
+        return obj.toIntValue();
+      case 'double':
+      case 'num':
+        return obj.toDoubleValue();
+      case 'bool':
+        return obj.toBoolValue();
+      default:
+        // Try all methods and return the first non-null result
+        if (obj.toBoolValue() != null) return obj.toBoolValue();
+        if (obj.toIntValue() != null) return obj.toIntValue();
+        if (obj.toDoubleValue() != null) return obj.toDoubleValue();
+        return obj.toStringValue();
+    }
+  }
+
+  /// Get enum constant names from an EnumElement
+  List<String> _getEnumValues(DartType type) {
+    final element = type.element;
+    if (element is! EnumElement) return [];
+    
+    // In analyzer 7.x, enum constants can be accessed via the enum's fields
+    // or via the constants property
+    try {
+      // Try accessing the enum's constants
+      final constants = element.fields.where((f) => f.isConst && f.isEnumConstant);
+      return constants.map((c) => c.name).toList();
+    } catch (e) {
+      return [];
     }
   }
 }

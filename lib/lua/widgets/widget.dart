@@ -5,13 +5,16 @@ import 'package:flutter/material.dart';
 /// Widgets that can be created from Lua must implement this interface.
 /// The code generator will create serializers that convert JSON maps
 /// to widget instances, which are then built using this method.
-abstract interface class LuaWidget {
+///
+/// Note: This was renamed from LuaWidget to LuaWidgetInterface to avoid
+/// naming conflicts with the @LuaWidget annotation.
+abstract interface class LuaWidgetInterface {
   /// Build the Flutter widget from this definition
   Widget build(BuildContext context);
 }
 
 /// Empty widget returned for unknown widget types or error cases
-class LuaEmptyWidget implements LuaWidget {
+class LuaEmptyWidget implements LuaWidgetInterface {
   const LuaEmptyWidget();
   
   @override
@@ -24,10 +27,10 @@ class LuaEmptyWidget implements LuaWidget {
 /// to widget instances, then calls their build() methods.
 class LuaWidgetRegistry {
   /// Map of widget type names to their deserialization functions
-  static final Map<String, LuaWidget Function(Map<String, dynamic>)> _builders = {};
+  static final Map<String, LuaWidgetInterface Function(Map<String, dynamic>)> _builders = {};
   
   /// Register a widget builder for a type
-  static void register(String type, LuaWidget Function(Map<String, dynamic>) builder) {
+  static void register(String type, LuaWidgetInterface Function(Map<String, dynamic>) builder) {
     _builders[type] = builder;
   }
   

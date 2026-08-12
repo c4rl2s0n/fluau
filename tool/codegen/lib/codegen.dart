@@ -124,11 +124,12 @@ class LuaCodegenCli {
     
     // Create analysis context
     print('Analyzing Dart files...');
-    final context = AnalysisContextCollection(includedPaths: [inputDir]);
+    final absoluteInputDir = path.absolute(inputDir);
+    final context = AnalysisContextCollection(includedPaths: [absoluteInputDir]);
     
     // Parse all Dart files in the input directory
     final parser = AnnotationParser();
-    final classes = await parser.parseDirectory(inputDir);
+    final classes = await parser.parseDirectory(absoluteInputDir);
     
     print('Found ${classes.length} Lua classes:');
     for (final luaClass in classes) {
