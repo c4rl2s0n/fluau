@@ -167,7 +167,9 @@ class AnnotationParser {
 
     // Determine Rust struct name
     final className = classElement.name;
-    final rustStructName = 'Lua$className';
+    // Remove "Lua" prefix from class name if present to avoid double prefix
+    final baseClassName = className.startsWith('Lua') ? className.substring(3) : className;
+    final rustStructName = 'Lua$baseClassName';
     final dartClassName = className;
     final luaClassName = luaName ?? className;
 

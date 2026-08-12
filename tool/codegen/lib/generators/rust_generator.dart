@@ -33,9 +33,9 @@ class RustGenerator {
   }
   
   void _writeImports(StringBuffer buffer) {
-    buffer.writeln('use mlua::{Lua, Result, Table, Value, UserData, FromLua, IntoLua}');
+    buffer.writeln('use mlua::{Lua, Result, Table, Value, UserData, FromLua, IntoLua};');
     buffer.writeln('use std::sync::Arc;');
-    buffer.writeln('use serde_json::{json, Value as JsonValue, Map as JsonMap}');
+    buffer.writeln('use serde_json::{json, Value as JsonValue, Map as JsonMap};');
     buffer.writeln('use std::collections::HashMap;');
   }
   
@@ -119,6 +119,7 @@ class RustGenerator {
   }
   
   void _writeLuaWidgetImpl(StringBuffer buffer, String structName, String luaName, LuaClassInfo luaClass, bool hasChildListProperty) {
+    // LuaWidget trait implementation
     buffer.writeln('impl LuaWidget for $structName {');
     buffer.writeln('    fn widget_type(&self) -> &\'static str {');
     buffer.writeln('        "$luaName"');
@@ -142,9 +143,14 @@ class RustGenerator {
     buffer.writeln('}');
     buffer.writeln();
     
+    // Separate impl block for serialize helper methods
+    buffer.writeln('impl $structName {');
     for (final prop in luaClass.properties) {
       _writeSerializeMethod(buffer, luaClass, prop);
+      buffer.writeln();
     }
+    buffer.writeln('}');
+    buffer.writeln();
   }
   
   void _writeSerializeMethod(StringBuffer buffer, LuaClassInfo luaClass, PropertyInfo prop) {
@@ -169,7 +175,6 @@ class RustGenerator {
     }
     
     buffer.writeln('    }');
-    buffer.writeln();
   }
   
   void _writeFromLuaImpl(StringBuffer buffer, String structName, String luaName) {
@@ -270,7 +275,7 @@ class RustGenerator {
     if (prop.isCallback) {
       if (isRequired) {
         buffer.writeln('        let ${propName}: String = args.get("$propName")');
-        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \"$propName\""))??;');
+        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \'$propName\'"))??;');
       } else {
         buffer.writeln('        let ${propName}: Option<String> = args.get("$propName").ok();');
       }
@@ -279,7 +284,7 @@ class RustGenerator {
       // Handle child list properties (e.g., List<LuaWidgetInterface>)
       if (isRequired) {
         buffer.writeln('        let ${propName}: Vec<Box<dyn LuaWidget>> = args.get("$propName")');
-        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \"$propName\""))?');
+        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \'$propName\'"))?');
         buffer.writeln('            .into_table()?');
         buffer.writeln('            .iter()');
         buffer.writeln('            .filter_map(|(_, v)| v.into_userdata::<Box<dyn LuaWidget>>().ok())');
@@ -296,7 +301,7 @@ class RustGenerator {
     } else if (prop.isChildWidget) {
       if (isRequired) {
         buffer.writeln('        let ${propName}: Box<dyn LuaWidget> = args.get("$propName")');
-        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \"$propName\""))?');
+        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \'$propName\'"))?');
         buffer.writeln('            .into_userdata()?;');
       } else {
         buffer.writeln('        let ${propName}: Option<Box<dyn LuaWidget>> = args.get("$propName")');
@@ -308,7 +313,7 @@ class RustGenerator {
       final nestedStructName = 'Lua${prop.nestedClassName}';
       if (isRequired) {
         buffer.writeln('        let ${propName}: Box<$nestedStructName> = args.get("$propName")');
-        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \"$propName\""))?');
+        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \'$propName\'"))?');
         buffer.writeln('            .into_userdata()?;');
       } else {
         buffer.writeln('        let ${propName}: Option<Box<$nestedStructName>> = args.get("$propName")');
@@ -320,7 +325,7 @@ class RustGenerator {
       // Enum properties are serialized as strings with validation
       if (isRequired) {
         buffer.writeln('        let ${propName}: String = args.get("$propName")');
-        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \"$propName\""))??;');
+        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \'$propName\'"))??;');
         _writeEnumValidation(buffer, luaName, propName, prop.enumValues);
       } else {
         buffer.writeln('        let ${propName}: Option<String> = args.get("$propName").ok();');
@@ -333,7 +338,7 @@ class RustGenerator {
       // Primitive types
       if (isRequired) {
         buffer.writeln('        let ${propName}: $baseRustType = args.get("$propName")');
-        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \"$propName\""))??;');
+        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \'$propName\'"))??;');
       } else {
         if (isRustNullable) {
           buffer.writeln('        let ${propName}: $rustType = args.get("$propName").ok();');
