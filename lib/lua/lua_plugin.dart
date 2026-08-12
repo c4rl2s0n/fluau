@@ -71,19 +71,19 @@ class LuaPlugin extends StatelessWidget {
   /// Execute the Lua script and return the JSON result
   ///
   /// This method will:
-  /// 1. Set any initial state if provided
+  /// 1. Set any initial state if provided (TODO: not yet implemented)
   /// 2. Execute the Lua script through the Rust FFI
   /// 3. Return the JSON string representing the widget tree
   Future<String> _executeLuaScript(BuildContext context) async {
-    // Set initial state through Rust FFI if provided
-    if (initialState != null) {
-      for (final entry in initialState!.entries) {
-        await setLuaState(
-          key: entry.key,
-          value: jsonEncode(entry.value),
-        );
-      }
-    }
+    // TODO: Set initial state through Rust FFI
+    // if (initialState != null) {
+    //   for (final entry in initialState!.entries) {
+    //     await setLuaState(
+    //       key: entry.key,
+    //       value: jsonEncode(entry.value),
+    //     );
+    //   }
+    // }
     
     // Call the actual Rust function
     return runLuaUiScript(script: luaScript);
