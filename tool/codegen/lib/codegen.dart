@@ -194,6 +194,13 @@ class LuaCodegenCli {
 
 use crate::lua_engine;
 
+/// Initialization function for flutter_rust_bridge
+/// This is called automatically by the bridge
+#[flutter_rust_bridge::frb(init)]
+pub fn init_lua() {
+    // Any initialization needed for the Lua API
+}
+
 /// Execute a Lua script that returns a widget tree
 /// Returns JSON string representing the widget
 #[flutter_rust_bridge::frb(sync)]

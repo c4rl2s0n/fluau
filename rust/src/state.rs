@@ -6,6 +6,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use serde_json::{Value, json};
 
+// Re-export for lazy_static
+use lazy_static::lazy_static;
+
 /// Thread-safe Lua state store
 #[derive(Debug, Default)]
 pub struct LuaStateStore {
@@ -52,19 +55,19 @@ impl LuaStateStore {
 }
 
 /// Global state store instance
-lazy_static::lazy_static! {
+lazy_static! {
     pub static ref STATE: LuaStateStore = LuaStateStore::new();
 }
 
 /// Get a state value by key
-pub fn get_state(key: &str) -> Result<String, String> {
+pub fn get_state(key: &str) -> std::result::Result<String, String> {
     STATE.get(key)
         .map(|v| v.to_string())
         .ok_or_else(|| format!("State key '{}' not found", key))
 }
 
 /// Set a state value from a JSON string
-pub fn set_state(key: String, value: String) -> Result<(), String> {
+pub fn set_state(key: String, value: String) -> std::result::Result<(), String> {
     let json_value: Value = serde_json::from_str(&value)
         .map_err(|e| format!("Invalid JSON: {}", e))?;
     STATE.set(key, json_value);
@@ -72,17 +75,17 @@ pub fn set_state(key: String, value: String) -> Result<(), String> {
 }
 
 /// Get all state as a JSON string
-pub fn get_all_state() -> Result<String, String> {
+pub fn get_all_state() -> std::result::Result<String, String> {
     Ok(STATE.get_all().to_string())
 }
 
 /// Delete a state value
-pub fn delete_state(key: String) -> Result<bool, String> {
+pub fn delete_state(key: String) -> std::result::Result<bool, String> {
     Ok(STATE.delete(&key))
 }
 
 /// Clear all state
-pub fn clear_state() -> Result<(), String> {
+pub fn clear_state() -> std::result::Result<(), String> {
     STATE.clear();
     Ok(())
 }

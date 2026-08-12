@@ -2,10 +2,13 @@
 ///
 /// Allows Lua scripts to register callbacks that can be executed from Dart.
 
-use mlua::{Lua, Result, RegistryKey, Thread, Function, Value};
+use mlua::{Lua, Result, RegistryKey, Function};
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use uuid::Uuid;
+
+// Re-export for lazy_static
+use lazy_static::lazy_static;
 
 /// Stores Lua callbacks with unique IDs
 #[derive(Debug, Default)]
@@ -34,23 +37,28 @@ impl CallbackRegistry {
     }
     
     /// Execute a callback by ID with no arguments
-    pub fn execute(&self, lua: &Lua, id: &str) -> Result<Value> {
+    pub fn execute(&self, lua: &Lua, id: &str) -> Result<String> {
         let callbacks = self.callbacks.lock().unwrap();
         let registry_key = callbacks.get(id)
             .ok_or_else(|| mlua::Error::runtime(format!("Callback {} not found", id)))?;
         
         let func: Function = lua.registry_value(registry_key)?;
-        func.call::<_, Value>(())
+        // Call with no arguments and return the result as a string
+        let result = func.call::<_, mlua::Value>(())?;
+        Ok(result.to_string())
     }
     
     /// Execute a callback by ID with arguments
-    pub fn execute_with_args(&self, lua: &Lua, id: &str, args: Vec<Value>) -> Result<Value> {
+    pub fn execute_with_args(&self, lua: &Lua, id: &str, args: Vec<String>) -> Result<String> {
         let callbacks = self.callbacks.lock().unwrap();
         let registry_key = callbacks.get(id)
             .ok_or_else(|| mlua::Error::runtime(format!("Callback {} not found", id)))?;
         
         let func: Function = lua.registry_value(registry_key)?;
-        func.call::<_, Value>(args)
+        // Convert args to mlua::Value and call
+        let lua_args: Vec<mlua::Value> = args.into_iter().map(mlua::Value::String).collect();
+        let result = func.call::<_, mlua::Value>(lua_args)?;
+        Ok(result.to_string())
     }
     
     /// Remove a callback by ID
@@ -67,7 +75,7 @@ impl CallbackRegistry {
 }
 
 /// Global callback registry instance
-lazy_static::lazy_static! {
+lazy_static! {
     pub static ref CALLBACKS: CallbackRegistry = CallbackRegistry::new();
 }
 
@@ -78,31 +86,33 @@ pub fn register_callback(lua: &Lua, func: Function) -> Result<String> {
 
 /// Execute a callback by ID with no arguments
 /// Returns the result as a string
-pub fn execute_callback(id: String) -> Result<String, String> {
+pub fn execute_callback(id: String) -> std::result::Result<String, String> {
     let lua = Lua::new();
-    let result = CALLBACKS.execute(&lua, &id)
-        .map(|v| v.to_string())
-        .map_err(|e| e.to_string())?;
-    Ok(result)
+    match CALLBACKS.execute(&lua, &id) {
+        Ok(result) => Ok(result),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
-/// Execute a callback by ID with arguments
-/// Arguments are passed as a JSON array string
-pub fn execute_callback_with_args(id: String, args_json: String) -> Result<String, String> {
+/// Execute a callback by ID with arguments (as JSON array of strings)
+/// Returns the result as a string
+pub fn execute_callback_with_args(id: String, args_json: String) -> std::result::Result<String, String> {
     let lua = Lua::new();
     
-    // Parse arguments from JSON
-    let args: Vec<Value> = serde_json::from_str(&args_json)
-        .map_err(|e| format!("Invalid JSON arguments: {}", e))?;
+    // Parse arguments from JSON array
+    let args: Vec<String> = match serde_json::from_str(&args_json) {
+        Ok(v) => v,
+        Err(e) => return Err(format!("Invalid JSON arguments: {}", e)),
+    };
     
-    let result = CALLBACKS.execute_with_args(&lua, &id, args)
-        .map(|v| v.to_string())
-        .map_err(|e| e.to_string())?;
-    Ok(result)
+    match CALLBACKS.execute_with_args(&lua, &id, args) {
+        Ok(result) => Ok(result),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 /// Remove a callback by ID
-pub fn remove_callback(id: String) -> Result<bool, String> {
+pub fn remove_callback(id: String) -> std::result::Result<bool, String> {
     Ok(CALLBACKS.remove(&id))
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:luatest/lua/widgets/widget.dart';
 import '../annotations.dart';
 import '../types.dart';
 
@@ -19,26 +20,21 @@ class LuaTextWidget implements LuaWidgetInterface {
   /// The text to display (required)
   @LuaProperty(required: true)
   final String text;
-  
+
   /// Text size preset: "small", "medium", "large"
   @LuaProperty()
   final TextSize? size;
-  
+
   /// Text color preset: "primary", "secondary", "error", "text"
   @LuaProperty()
   final TextColor? color;
-  
+
   /// Font weight preset: "normal", "bold"
   @LuaProperty()
   final FontWeightPreset? weight;
-  
-  const LuaTextWidget({
-    required this.text,
-    this.size,
-    this.color,
-    this.weight,
-  });
-  
+
+  const LuaTextWidget({required this.text, this.size, this.color, this.weight});
+
   /// Build the Flutter Text widget from this definition
   ///
   /// This method is called by the code-generated serializer to convert
@@ -53,7 +49,7 @@ class LuaTextWidget implements LuaWidgetInterface {
       ),
     );
   }
-  
+
   /// Get font size from TextSize enum
   double? _getFontSize(TextSize? size) {
     switch (size) {
@@ -67,11 +63,11 @@ class LuaTextWidget implements LuaWidgetInterface {
         return null;
     }
   }
-  
+
   /// Get color from TextColor enum using the current theme
   Color? _getColor(TextColor? color, BuildContext context) {
     if (color == null) return null;
-    
+
     switch (color) {
       case TextColor.primary:
         return Theme.of(context).primaryColor;
@@ -83,7 +79,7 @@ class LuaTextWidget implements LuaWidgetInterface {
         return Theme.of(context).textTheme.bodyLarge?.color;
     }
   }
-  
+
   /// Get FontWeight from FontWeightPreset enum
   FontWeight _getFontWeight(FontWeightPreset? weight) {
     switch (weight) {

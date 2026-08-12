@@ -24,36 +24,36 @@ class LuaColumnWidget implements LuaWidgetInterface {
   /// The amount of space between children
   @LuaProperty()
   final double? spacing;
-  
+
   /// How the children should be aligned along the main axis
   @LuaProperty()
   final MainAxisAlignmentPreset? mainAxisAlignment;
-  
+
   /// How the children should be aligned along the cross axis
   @LuaProperty()
   final CrossAxisAlignmentPreset? crossAxisAlignment;
-  
+
   /// The list of child widgets
   @LuaChildren()
   final List<LuaWidgetInterface>? children;
-  
+
   const LuaColumnWidget({
     this.spacing,
     this.mainAxisAlignment,
     this.crossAxisAlignment,
     this.children,
   });
-  
+
   /// Build the Flutter Column widget from this definition
   Widget build(BuildContext context) {
     return Column(
-      spacing: spacing,
+      spacing: spacing ?? 0,
       mainAxisAlignment: _parseMainAxisAlignment(mainAxisAlignment),
       crossAxisAlignment: _parseCrossAxisAlignment(crossAxisAlignment),
       children: children?.map((w) => w.build(context)).toList() ?? [],
     );
   }
-  
+
   /// Parse MainAxisAlignment from MainAxisAlignmentPreset enum
   MainAxisAlignment _parseMainAxisAlignment(MainAxisAlignmentPreset? preset) {
     switch (preset) {
@@ -73,9 +73,11 @@ class LuaColumnWidget implements LuaWidgetInterface {
         return MainAxisAlignment.start;
     }
   }
-  
+
   /// Parse CrossAxisAlignment from CrossAxisAlignmentPreset enum
-  CrossAxisAlignment _parseCrossAxisAlignment(CrossAxisAlignmentPreset? preset) {
+  CrossAxisAlignment _parseCrossAxisAlignment(
+    CrossAxisAlignmentPreset? preset,
+  ) {
     switch (preset) {
       case CrossAxisAlignmentPreset.start:
         return CrossAxisAlignment.start;
