@@ -219,17 +219,17 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
 
         let mainAxisAlignment: Option<String> = args.get("mainAxisAlignment").ok();
         if let Some(ref v) = mainAxisAlignment {
-             if !["start", "center", "end", "spaceBetween", "spaceAround", "spaceEvenly"].contains(&mainAxisAlignment.as_str()) {
-                 return Err(mlua::Error::runtime("Column: invalid mainAxisAlignment value"));
-             }
+                 if !["start", "center", "end", "spaceBetween", "spaceAround", "spaceEvenly"].contains(v) {
+                     return Err(mlua::Error::runtime("Column: invalid mainAxisAlignment value"));
+                 }
         }
         widget.mainAxisAlignment = mainAxisAlignment;
 
         let crossAxisAlignment: Option<String> = args.get("crossAxisAlignment").ok();
         if let Some(ref v) = crossAxisAlignment {
-             if !["start", "center", "end", "stretch", "baseline"].contains(&crossAxisAlignment.as_str()) {
-                 return Err(mlua::Error::runtime("Column: invalid crossAxisAlignment value"));
-             }
+                 if !["start", "center", "end", "stretch", "baseline"].contains(v) {
+                     return Err(mlua::Error::runtime("Column: invalid crossAxisAlignment value"));
+                 }
         }
         widget.crossAxisAlignment = crossAxisAlignment;
 
@@ -272,25 +272,25 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
 
         let size: Option<String> = args.get("size").ok();
         if let Some(ref v) = size {
-             if !["small", "medium", "large"].contains(&size.as_str()) {
-                 return Err(mlua::Error::runtime("Text: invalid size value"));
-             }
+                 if !["small", "medium", "large"].contains(v) {
+                     return Err(mlua::Error::runtime("Text: invalid size value"));
+                 }
         }
         widget.size = size;
 
         let color: Option<String> = args.get("color").ok();
         if let Some(ref v) = color {
-             if !["primary", "secondary", "error", "text"].contains(&color.as_str()) {
-                 return Err(mlua::Error::runtime("Text: invalid color value"));
-             }
+                 if !["primary", "secondary", "error", "text"].contains(v) {
+                     return Err(mlua::Error::runtime("Text: invalid color value"));
+                 }
         }
         widget.color = color;
 
         let weight: Option<String> = args.get("weight").ok();
         if let Some(ref v) = weight {
-             if !["normal", "bold"].contains(&weight.as_str()) {
-                 return Err(mlua::Error::runtime("Text: invalid weight value"));
-             }
+                 if !["normal", "bold"].contains(v) {
+                     return Err(mlua::Error::runtime("Text: invalid weight value"));
+                 }
         }
         widget.weight = weight;
 
