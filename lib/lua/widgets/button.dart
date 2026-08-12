@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../annotations.dart';
 import 'widget.dart';
 import 'text.dart';
+import 'package:luatest/src/rust/api/lua.dart';
 
 /// Button widget definition for Lua
 ///
@@ -51,27 +52,18 @@ class LuaButtonWidget implements LuaWidgetInterface {
     }
     
     return ElevatedButton(
-      onPressed: onPressed != null ? () => _executeCallback(context, onPressed!) : null,
+      onPressed: onPressed != null ? () => _executeCallback(onPressed!) : null,
       child: buttonChild,
     );
   }
   
   /// Execute a Lua callback by ID
-  Future<void> _executeCallback(BuildContext context, String callbackId) async {
+  Future<void> _executeCallback(String callbackId) async {
     try {
-      // This will call into Rust which will execute the registered Lua callback
-      // The actual implementation is in the generated API
-      await _executeLuaCallback(callbackId);
+      // Call the Rust FFI to execute the Lua callback
+      await executeLuaCallback(callbackId: callbackId);
     } catch (e) {
       debugPrint('Lua callback error: $e');
     }
-  }
-  
-  /// Execute a Lua callback through FFI
-  /// This is a placeholder that will be replaced by the actual FFI call
-  Future<void> _executeLuaCallback(String callbackId) async {
-    // TODO: Implement actual callback execution through Rust FFI
-    // This will call RustLib.instance.api.executeLuaCallback(callbackId)
-    debugPrint('Executing Lua callback: $callbackId');
   }
 }

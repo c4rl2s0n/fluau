@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:luatest/src/rust/api/lua.dart';
 import 'widgets/widget.dart';
 
 /// Main widget that executes a Lua script and renders the resulting UI
@@ -74,60 +75,17 @@ class LuaPlugin extends StatelessWidget {
   /// 2. Execute the Lua script through the Rust FFI
   /// 3. Return the JSON string representing the widget tree
   Future<String> _executeLuaScript(BuildContext context) async {
-    // TODO: Set initial state through Rust FFI
-    // if (initialState != null) {
-    //   for (final entry in initialState!.entries) {
-    //     await RustLib.instance.api.setLuaState(
-    //       key: entry.key,
-    //       value: jsonEncode(entry.value),
-    //     );
-    //   }
-    // }
-    
-    // TODO: Call the actual Rust function
-    // For now, return a mock response for testing
-    // return RustLib.instance.api.runLuaUiScript(script: luaScript);
-    
-    // Mock response for testing without Rust FFI
-    return _mockExecuteScript(luaScript);
-  }
-  
-  /// Mock script execution for testing without Rust FFI
-  ///
-  /// This is a temporary method that will be replaced by actual FFI calls.
-  String _mockExecuteScript(String script) {
-    // Simple mock: if the script contains "Text", return a Text widget JSON
-    if (script.contains('Text') || script.contains('text')) {
-      return jsonEncode({
-        'type': 'Text',
-        'text': 'Hello from Lua!',
-        'size': 'large',
-        'color': 'primary',
-        'weight': 'bold',
-      });
+    // Set initial state through Rust FFI if provided
+    if (initialState != null) {
+      for (final entry in initialState!.entries) {
+        await setLuaState(
+          key: entry.key,
+          value: jsonEncode(entry.value),
+        );
+      }
     }
     
-    // If the script contains "Column", return a Column widget JSON
-    if (script.contains('Column') || script.contains('column')) {
-      return jsonEncode({
-        'type': 'Column',
-        'spacing': 16.0,
-        'mainAxisAlignment': 'center',
-        'crossAxisAlignment': 'center',
-        'children': [
-          {
-            'type': 'Text',
-            'text': 'First Item',
-          },
-          {
-            'type': 'Text',
-            'text': 'Second Item',
-          },
-        ],
-      });
-    }
-    
-    // Default: return an empty widget
-    return jsonEncode({'type': 'SizedBox'});
+    // Call the actual Rust function
+    return runLuaUiScript(script: luaScript);
   }
 }

@@ -124,7 +124,7 @@ class LuaWidgetRegistry {
   static Widget buildFromMap(BuildContext context, Map<String, dynamic> widgetMap) {
     final widgetType = widgetMap['type'] as String?;
     if (widgetType == null) {
-      return const LuaEmptyWidget();
+      return const LuaEmptyWidget().build(context);
     }
 
     // Remove type from properties

@@ -19,3 +19,19 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// 4. Converts the widget to JSON for Flutter to parse
 String runLuaUiScript({required String script}) =>
     RustLib.instance.api.crateApiLuaRunLuaUiScript(script: script);
+
+/// Get a state value by key
+String getLuaState({required String key}) =>
+    RustLib.instance.api.crateApiLuaGetLuaState(key: key);
+
+/// Set a state value
+Future<void> setLuaState({required String key, required String value}) async =>
+    RustLib.instance.api.crateApiLuaSetLuaState(key: key, value: value);
+
+/// Get all state as JSON string
+String getAllLuaState() =>
+    RustLib.instance.api.crateApiLuaGetAllLuaState();
+
+/// Execute a Lua callback by ID
+Future<void> executeLuaCallback({required String callbackId}) async =>
+    RustLib.instance.api.crateApiLuaExecuteLuaCallback(callbackId: callbackId);

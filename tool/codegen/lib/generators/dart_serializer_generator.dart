@@ -177,7 +177,7 @@ class DartSerializerGenerator {
     buffer.writeln('  static Widget buildFromMap(BuildContext context, Map<String, dynamic> widgetMap) {');
     buffer.writeln('    final widgetType = widgetMap[\'type\'] as String?;');
     buffer.writeln('    if (widgetType == null) {');
-    buffer.writeln('      return const LuaEmptyWidget();');
+    buffer.writeln('      return const LuaEmptyWidget().build(context);');
     buffer.writeln('    }');
     buffer.writeln();
     buffer.writeln('    // Remove type from properties');
