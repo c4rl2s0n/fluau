@@ -9,7 +9,6 @@ library lua_plugin_codegen;
 import 'dart:async';
 import 'dart:io';
 
-import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:path/path.dart' as path;
 
 import 'parsers/annotation_parser.dart';
@@ -125,7 +124,6 @@ class LuaCodegenCli {
     // Create analysis context
     print('Analyzing Dart files...');
     final absoluteInputDir = path.absolute(inputDir);
-    final context = AnalysisContextCollection(includedPaths: [absoluteInputDir]);
     
     // Parse all Dart files in the input directory
     final parser = AnnotationParser();
