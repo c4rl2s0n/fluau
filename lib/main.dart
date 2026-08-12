@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:luatest/src/rust/api/simple.dart';
-import 'package:luatest/src/rust/api/lua.dart';
-import 'package:luatest/src/rust/frb_generated.dart';
-import 'package:luatest/lua/lua_plugin.dart';
+import 'lua/lua_plugin.dart';
 
-Future<void> main() async {
-  await RustLib.init();
+/// Main entry point for the Lua Flutter Plugin Demo app
+void main() {
   runApp(const MyApp());
 }
 
+/// Root application widget
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -20,14 +18,14 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const LuaDemoPage(),
+      home: const DemoScreen(),
     );
   }
 }
 
-/// Demo page that shows LuaPlugin in action
-class LuaDemoPage extends StatelessWidget {
-  const LuaDemoPage({super.key});
+/// Demo screen showing various Lua widget examples
+class DemoScreen extends StatelessWidget {
+  const DemoScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -35,56 +33,59 @@ class LuaDemoPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Lua Flutter Plugin Demo'),
       ),
-      body: Center(
+      body: const Padding(
+        padding: EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Simple text widget from Lua
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: LuaPlugin(
-                luaScript: '''
-                  return ui.Text {
-                    text = "Hello from Lua!",
-                    style = { fontSize = 24, color = "#FF0000FF" }
-                  }
-                ''',
-              ),
+            // Simple text widget
+            LuaPlugin(
+              luaScript: '''
+                return ui.Text {
+                  text = "Hello from Lua!",
+                  size = "large",
+                  color = "primary",
+                  weight = "bold"
+                }
+              ''',
             ),
+            SizedBox(height: 16),
             
-            // Text with bold style
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: LuaPlugin(
-                luaScript: '''
-                  return ui.Text {
-                    text = "Bold text from Lua",
-                    style = { fontSize = 20, fontWeight = "bold" }
-                  }
-                ''',
-              ),
+            // Text with different styling
+            LuaPlugin(
+              luaScript: '''
+                return ui.Text {
+                  text = "This is a smaller text with error color",
+                  size = "small",
+                  color = "error"
+                }
+              ''',
             ),
+            SizedBox(height: 16),
             
-            // Text with italic style
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: LuaPlugin(
-                luaScript: '''
-                  return ui.Text {
-                    text = "Italic text from Lua",
-                    style = { fontSize = 18, fontStyle = "italic", color = "#00FF00FF" }
-                  }
-                ''',
-              ),
+            // A button
+            LuaPlugin(
+              luaScript: '''
+                return ui.Button {
+                  text = "Click me!"
+                }
+              ''',
             ),
+            SizedBox(height: 16),
             
-            // Simple text without style
-            const Padding(
-              padding: EdgeInsets.all(16.0),
+            // A column with multiple children
+            Expanded(
               child: LuaPlugin(
                 luaScript: '''
-                  return ui.Text {
-                    text = "Plain text from Lua"
+                  return ui.Column {
+                    spacing = 8,
+                    mainAxisAlignment = "center",
+                    crossAxisAlignment = "center",
+                    children = {
+                      ui.Text { text = "First" },
+                      ui.Text { text = "Second", size = "medium", weight = "bold" },
+                      ui.Text { text = "Third", size = "small", color = "secondary" }
+                    }
                   }
                 ''',
               ),
