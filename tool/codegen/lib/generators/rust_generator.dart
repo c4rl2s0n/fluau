@@ -283,6 +283,19 @@ class RustGenerator {
         buffer.writeln('            .and_then(|v| v.into_userdata::<Box<$nestedStructName>>().ok());');
       }
       buffer.writeln('        widget.$propName = ${propName};');
+    } else if (prop.isEnum) {
+      // Enum properties are serialized as strings with validation
+      if (isRequired) {
+        buffer.writeln('        let ${propName}: String = args.get("$propName")');
+        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \"$propName\""))??;');
+        _writeEnumValidation(buffer, luaName, propName, prop.enumValues);
+      } else {
+        buffer.writeln('        let ${propName}: Option<String> = args.get("$propName").ok();');
+        buffer.writeln('        if let Some(ref v) = ${propName} {');
+        _writeEnumValidation(buffer, luaName, propName, prop.enumValues, indent: '            ');
+        buffer.writeln('        }');
+      }
+      buffer.writeln('        widget.$propName = ${propName};');
     } else {
       final rustType = _getRustPrimitiveType(prop);
       if (isRequired) {
@@ -294,6 +307,16 @@ class RustGenerator {
       buffer.writeln('        widget.$propName = ${propName};');
     }
     buffer.writeln();
+  }
+
+  /// Write enum validation code
+  void _writeEnumValidation(StringBuffer buffer, String luaName, String propName, List<String>? enumValues, {String indent = '        '}) {
+    if (enumValues == null || enumValues.isEmpty) return;
+    
+    final validValues = enumValues.map((v) => '"$v"').join(', ');
+    buffer.writeln('$indent if ![$validValues].contains(&${propName}.as_str()) {');
+    buffer.writeln('$indent     return Err(mlua::Error::runtime("$luaName: invalid $propName value"));');
+    buffer.writeln('$indent }');
   }
   
   void _writeDataConstructor(StringBuffer buffer, LuaClassInfo luaClass) {
@@ -348,6 +371,10 @@ class RustGenerator {
       final className = prop.nestedClassName ?? prop.dartType.replaceAll('?', '');
       final rustName = 'Lua$className';
       return prop.isNullable ? 'Option<Box<$rustName>>' : 'Box<$rustName>';
+    }
+    if (prop.isEnum) {
+      // Enums are serialized as strings
+      return prop.isNullable ? 'Option<String>' : 'String';
     }
     return _getRustPrimitiveType(prop);
   }
