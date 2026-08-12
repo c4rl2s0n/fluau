@@ -89,6 +89,12 @@ class PropertyInfo {
   /// Whether this property is a custom data class (with @LuaData)
   final bool isDataClass;
   
+  /// Whether this property is an enum type
+  final bool isEnum;
+  
+  /// For enum properties, the list of valid enum constant names
+  final List<String>? enumValues;
+  
   /// For data class properties, the name of the nested class
   final String? nestedClassName;
   
@@ -108,6 +114,8 @@ class PropertyInfo {
     this.isChildList = false,
     this.isCallback = false,
     this.isDataClass = false,
+    this.isEnum = false,
+    this.enumValues,
     this.nestedClassName,
   });
 }
