@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import '../annotations.dart';
+import '../types.dart';
 
 /// Text widget definition for Lua
 ///
+/// This is a dataclass (not a StatelessWidget) that defines the structure
+/// of a Text widget that can be created from Lua.
+///
 /// Lua usage:
-///   ui.Text { text = "Hello", size = "large", color = "primary" }
+///   ui.Text {
+///     text = "Hello from Lua!",
+///     size = "large",
+///     color = "primary",
+///     weight = "bold"
+///   }
 @LuaWidget(name: 'Text')
 class LuaTextWidget {
   /// The text to display (required)
@@ -13,15 +22,15 @@ class LuaTextWidget {
   
   /// Text size preset: "small", "medium", "large"
   @LuaProperty()
-  final String? size;
+  final TextSize? size;
   
   /// Text color preset: "primary", "secondary", "error", "text"
   @LuaProperty()
-  final String? color;
+  final TextColor? color;
   
-  /// Font weight: "normal", "bold"
+  /// Font weight preset: "normal", "bold"
   @LuaProperty()
-  final String? weight;
+  final FontWeightPreset? weight;
   
   const LuaTextWidget({
     required this.text,
@@ -31,43 +40,58 @@ class LuaTextWidget {
   });
   
   /// Build the Flutter Text widget from this definition
+  ///
+  /// This method is called by the code-generated serializer to convert
+  /// the Lua-defined structure into a Flutter widget.
   Widget build(BuildContext context) {
     return Text(
       text,
       style: TextStyle(
-        fontSize: _getFontSize(size, context),
+        fontSize: _getFontSize(size),
         color: _getColor(color, context),
         fontWeight: _getFontWeight(weight),
       ),
     );
   }
   
-  double? _getFontSize(String? size, BuildContext context) {
-    if (size == null) return null;
+  /// Get font size from TextSize enum
+  double? _getFontSize(TextSize? size) {
     switch (size) {
-      case 'small': return 14;
-      case 'medium': return 16;
-      case 'large': return 24;
-      default: return null;
+      case TextSize.small:
+        return 14;
+      case TextSize.medium:
+        return 16;
+      case TextSize.large:
+        return 24;
+      case null:
+        return null;
     }
   }
   
-  Color? _getColor(String? color, BuildContext context) {
+  /// Get color from TextColor enum using the current theme
+  Color? _getColor(TextColor? color, BuildContext context) {
     if (color == null) return null;
+    
     switch (color) {
-      case 'primary': return Theme.of(context).primaryColor;
-      case 'secondary': return Theme.of(context).colorScheme.secondary;
-      case 'error': return Theme.of(context).colorScheme.error;
-      case 'text': return Theme.of(context).textTheme.bodyLarge?.color;
-      default: return null;
+      case TextColor.primary:
+        return Theme.of(context).primaryColor;
+      case TextColor.secondary:
+        return Theme.of(context).colorScheme.secondary;
+      case TextColor.error:
+        return Theme.of(context).colorScheme.error;
+      case TextColor.text:
+        return Theme.of(context).textTheme.bodyLarge?.color;
     }
   }
   
-  FontWeight _getFontWeight(String? weight) {
-    if (weight == null) return FontWeight.normal;
+  /// Get FontWeight from FontWeightPreset enum
+  FontWeight _getFontWeight(FontWeightPreset? weight) {
     switch (weight) {
-      case 'bold': return FontWeight.bold;
-      default: return FontWeight.normal;
+      case FontWeightPreset.bold:
+        return FontWeight.bold;
+      case FontWeightPreset.normal:
+      case null:
+        return FontWeight.normal;
     }
   }
 }
