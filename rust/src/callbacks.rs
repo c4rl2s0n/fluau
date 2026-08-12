@@ -44,8 +44,8 @@ impl CallbackRegistry {
         
         let func: Function = lua.registry_value(registry_key)?;
         // Call with no arguments and return the result as a string
-        let result = func.call::<_, mlua::Value>(())?;
-        Ok(result.to_string())
+        let result: mlua::Value = func.call(())?;
+        Ok(result.to_string()?)
     }
     
     /// Execute a callback by ID with arguments
@@ -56,9 +56,12 @@ impl CallbackRegistry {
         
         let func: Function = lua.registry_value(registry_key)?;
         // Convert args to mlua::Value and call
-        let lua_args: Vec<mlua::Value> = args.into_iter().map(mlua::Value::String).collect();
-        let result = func.call::<_, mlua::Value>(lua_args)?;
-        Ok(result.to_string())
+        let lua_args: Result<Vec<mlua::Value>> = args.into_iter()
+            .map(|s| Ok(mlua::Value::String(lua.create_string(s)?.into())))
+            .collect();
+        let lua_args = lua_args?;
+        let result: mlua::Value = func.call(lua_args)?;
+        Ok(result.to_string()?)
     }
     
     /// Remove a callback by ID
@@ -117,7 +120,7 @@ pub fn remove_callback(id: String) -> std::result::Result<bool, String> {
 }
 
 /// Clear all callbacks
-pub fn clear_callbacks() -> Result<(), String> {
+pub fn clear_callbacks() -> std::result::Result<(), String> {
     CALLBACKS.clear();
     Ok(())
 }

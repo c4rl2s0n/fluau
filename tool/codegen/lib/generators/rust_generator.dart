@@ -1,4 +1,12 @@
 /// Rust code generator for Lua plugin framework
+///
+/// This generator creates a simple Rust module that:
+/// 1. Sets up Lua API with widget constructors
+/// 2. Widget constructors build JSON-serializable Lua tables
+/// 3. Tables are serialized to JSON for Dart
+///
+/// This approach avoids the complexity of trait objects and UserData in mlua 0.10.
+
 import '../models/widget_info.dart';
 
 /// Main Rust generator
@@ -9,14 +17,6 @@ class RustGenerator {
     _writeHeader(buffer);
     _writeImports(buffer);
     buffer.writeln();
-    
-    _writeBaseTrait(buffer);
-    buffer.writeln();
-    
-    for (final luaClass in classes) {
-      _writeStruct(buffer, luaClass);
-      buffer.writeln();
-    }
     
     _writeLuaApiSetup(buffer, classes);
     buffer.writeln();
@@ -33,139 +33,8 @@ class RustGenerator {
   }
   
   void _writeImports(StringBuffer buffer) {
-    buffer.writeln('use mlua::{Lua, Result, Table, Value, Function};');
+    buffer.writeln('use mlua::{Lua, Result, Table, Value};');
     buffer.writeln('use serde_json::{json, Value as JsonValue, Map as JsonMap};');
-  }
-  
-  void _writeBaseTrait(StringBuffer buffer) {
-    buffer.writeln('/// Base trait for all Lua widgets - enables dynamic dispatch');
-    buffer.writeln('pub trait LuaWidget: Send + Sync {');
-    buffer.writeln('    /// Returns the widget type name (e.g., "Text", "Button")');
-    buffer.writeln('    fn widget_type(&self) -> &\'static str;');
-    buffer.writeln();
-    buffer.writeln('    /// Serializes the widget to JSON for transmission to Dart');
-    buffer.writeln('    fn to_json(&self) -> JsonValue;');
-    buffer.writeln('}');
-    buffer.writeln();
-  }
-  
-  void _writeStruct(StringBuffer buffer, LuaClassInfo luaClass) {
-    final structName = luaClass.rustStructName;
-    final luaName = luaClass.luaName;
-    
-    // Check if any property is a child list (in which case we don't need a separate children field)
-    final hasChildListProperty = luaClass.properties.any((p) => p.isChildList);
-    
-    // Struct definition
-    buffer.writeln('/// Generated from Dart ${luaClass.dartClassName}');
-    buffer.writeln('#[derive(Debug, Clone)]');
-    buffer.writeln('pub struct $structName {');
-    
-    for (final prop in luaClass.properties) {
-      final rustType = _getRustFieldType(prop);
-      buffer.writeln('    pub ${prop.name}: $rustType,');
-    }
-    
-    // Only add children field if hasChildren is true but there's no child list property
-    // This handles the case where @LuaWidget(hasChildren: true) is set but the property
-    // uses @LuaChildren annotation (which we want to use)
-    if (luaClass.hasChildren && !hasChildListProperty) {
-      buffer.writeln('    pub children: Vec<Box<dyn LuaWidget>>,');
-    }
-    
-    buffer.writeln('}');
-    buffer.writeln();
-    
-    // Default impl
-    buffer.writeln('impl Default for $structName {');
-    buffer.writeln('    fn default() -> Self {');
-    buffer.writeln('        Self {');
-    for (final prop in luaClass.properties) {
-      buffer.writeln('            ${prop.name}: Default::default(),');
-    }
-    if (luaClass.hasChildren && !hasChildListProperty) {
-      buffer.writeln('            children: Vec::new(),');
-    }
-    buffer.writeln('        }');
-    buffer.writeln('    }');
-    buffer.writeln('}');
-    buffer.writeln();
-    
-    // LuaWidget impl (only for widgets)
-    if (luaClass.isWidget) {
-      _writeLuaWidgetImpl(buffer, structName, luaName, luaClass, hasChildListProperty);
-    }
-    
-
-  }
-  
-  void _writeLuaWidgetImpl(StringBuffer buffer, String structName, String luaName, LuaClassInfo luaClass, bool hasChildListProperty) {
-    // LuaWidget trait implementation
-    buffer.writeln('impl LuaWidget for $structName {');
-    buffer.writeln('    fn widget_type(&self) -> &\'static str {');
-    buffer.writeln('        "$luaName"');
-    buffer.writeln('    }');
-    buffer.writeln();
-    buffer.writeln('    fn to_json(&self) -> JsonValue {');
-    buffer.writeln('        let mut map = JsonMap::new();');
-    buffer.writeln('        map.insert("type".to_string(), json!("$luaName"));');
-    
-    for (final prop in luaClass.properties) {
-      buffer.writeln('        map.insert("${prop.name}".to_string(), self._serialize_${prop.name}());');
-    }
-    
-    // Only add children serialization if there's a separate children field
-    if (luaClass.hasChildren && !hasChildListProperty) {
-      buffer.writeln('        map.insert("children".to_string(), json!(self.children.iter().map(|c| c.to_json()).collect::<Vec<_>>()));');
-    }
-    
-    buffer.writeln('        json!(map)');
-    buffer.writeln('    }');
-    buffer.writeln('}');
-    buffer.writeln();
-    
-    // Separate impl block for serialize helper methods
-    buffer.writeln('impl $structName {');
-    for (final prop in luaClass.properties) {
-      _writeSerializeMethod(buffer, luaClass, prop);
-      buffer.writeln();
-    }
-    buffer.writeln('}');
-    buffer.writeln();
-  }
-  
-  void _writeSerializeMethod(StringBuffer buffer, LuaClassInfo luaClass, PropertyInfo prop) {
-    buffer.writeln('    fn _serialize_${prop.name}(&self) -> JsonValue {');
-    
-    if (prop.isCallback) {
-      buffer.writeln('        json!(&self.${prop.name})');
-    } else if (prop.isChildList) {
-      buffer.writeln('        json!(self.${prop.name}.iter().map(|c| c.to_json()).collect::<Vec<_>>())');
-    } else if (prop.isChildWidget) {
-      buffer.writeln('        match &self.${prop.name} {');
-      buffer.writeln('            Some(c) => c.to_json(),');
-      buffer.writeln('            None => JsonValue::Null,');
-      buffer.writeln('        }');
-    } else if (prop.isDataClass) {
-      buffer.writeln('        match &self.${prop.name} {');
-      buffer.writeln('            Some(v) => v.to_json(),');
-      buffer.writeln('            None => JsonValue::Null,');
-      buffer.writeln('        }');
-    } else {
-      buffer.writeln('        json!(&self.${prop.name})');
-    }
-    
-    buffer.writeln('    }');
-  }
-  
-  void _writeFromLuaImpl(StringBuffer buffer, String structName, String luaName) {
-    buffer.writeln('impl FromLua for $structName {');
-    buffer.writeln('    type Error = mlua::Error;');
-    buffer.writeln();
-    buffer.writeln('    fn from_lua(value: Value, lua: &Lua) -> Result<Self, Self::Error> {');
-    buffer.writeln('        Err(mlua::Error::runtime("Use ui.$luaName() constructor".to_string()))');
-    buffer.writeln('    }');
-    buffer.writeln('}');
     buffer.writeln();
   }
   
@@ -177,10 +46,6 @@ class RustGenerator {
     
     for (final luaClass in classes.where((c) => c.isWidget)) {
       _writeWidgetConstructor(buffer, luaClass);
-    }
-    
-    for (final luaClass in classes.where((c) => !c.isWidget)) {
-      _writeDataConstructor(buffer, luaClass);
     }
     
     buffer.writeln();
@@ -199,7 +64,7 @@ class RustGenerator {
     
     buffer.writeln();
     buffer.writeln('    // Callback registration');
-    buffer.writeln('    ui.set("registerCallback", lua.create_function(|lua, func: Function| {');
+    buffer.writeln('    ui.set("registerCallback", lua.create_function(|lua, func: mlua::Function| {');
     buffer.writeln('        crate::callbacks::register_callback(lua, func).map_err(|e| mlua::Error::runtime(e.to_string()))');
     buffer.writeln('    })?)?;');
     
@@ -210,35 +75,20 @@ class RustGenerator {
   }
   
   void _writeWidgetConstructor(StringBuffer buffer, LuaClassInfo luaClass) {
-    final structName = luaClass.rustStructName;
     final luaName = luaClass.luaName;
     
-    // Check if any property is a child list
-    final hasChildListProperty = luaClass.properties.any((p) => p.isChildList);
-    
     buffer.writeln('    // $luaName widget constructor');
-    buffer.writeln('    ui.set("$luaName", lua.create_function(|lua, args: Table| -> Result<Box<dyn LuaWidget>> {');
-    buffer.writeln('        let mut widget = $structName::default();');
+    buffer.writeln('    ui.set("$luaName", lua.create_function(|lua, args: Table| -> Result<Value> {');
+    buffer.writeln('        let mut map = JsonMap::new();');
+    buffer.writeln('        map.insert("type".to_string(), json!("$luaName"));');
     buffer.writeln();
     
     for (final prop in luaClass.properties) {
       _writePropertyExtraction(buffer, luaName, luaClass, prop);
     }
     
-    // Only add children handling if hasChildren is true but there's no child list property
-    if (luaClass.hasChildren && !hasChildListProperty) {
-      buffer.writeln('        // Handle children');
-      buffer.writeln('        if let Ok(children_table) = args.get::<Table>("children") {');
-      buffer.writeln('            for (_, child_value) in children_table.pairs::<Value, Value>() {');
-      buffer.writeln('                if let Ok(child) = child_value.into_userdata::<Box<dyn LuaWidget>>() {');
-      buffer.writeln('                    widget.children.push(child);');
-      buffer.writeln('                }');
-      buffer.writeln('            }');
-      buffer.writeln('        }');
-      buffer.writeln();
-    }
-    
-    buffer.writeln('        Ok(Box::new(widget))');
+    buffer.writeln('        let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;');
+    buffer.writeln('        Ok(Value::String(lua.create_string(&json_str)?))');
     buffer.writeln('    })?)?;');
     buffer.writeln();
   }
@@ -247,123 +97,95 @@ class RustGenerator {
     final propName = prop.name;
     final isRequired = prop.required;
     
-    // Get the Rust type without the Option wrapper (we'll handle nullability separately)
-    String rustType = _getRustFieldType(prop);
-    // Remove Option<...> wrapper if present
-    final isRustNullable = rustType.startsWith('Option<');
-    final baseRustType = isRustNullable ? rustType.replaceFirst('Option<', '').replaceFirst('>', '') : rustType;
-    
     if (prop.isCallback) {
+      // Callbacks are stored as strings (callback IDs)
+      buffer.writeln('        // Handle $propName (callback)');
       if (isRequired) {
-        buffer.writeln('        let ${propName}: String = args.get("$propName")');
-        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \'$propName\'"))??;');
+        buffer.writeln('        let $propName: String = args.get("$propName")?;');
+        buffer.writeln('        map.insert("$propName".to_string(), json!($propName));');
       } else {
-        buffer.writeln('        let ${propName}: Option<String> = args.get("$propName").ok();');
-      }
-      buffer.writeln('        widget.$propName = ${propName};');
-    } else if (prop.isChildList) {
-      // Handle child list properties (e.g., List<LuaWidgetInterface>)
-      if (isRequired) {
-        buffer.writeln('        let ${propName}: Vec<Box<dyn LuaWidget>> = args.get("$propName")');
-        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \'$propName\'"))?');
-        buffer.writeln('            .into_table()?');
-        buffer.writeln('            .iter()');
-        buffer.writeln('            .filter_map(|(_, v)| v.into_userdata::<Box<dyn LuaWidget>>().ok())');
-        buffer.writeln('            .collect();');
-      } else {
-        buffer.writeln('        let ${propName}: Vec<Box<dyn LuaWidget>> = args.get("$propName")');
-        buffer.writeln('            .ok()');
-        buffer.writeln('            .and_then(|t: Table| Some(t.into_iter()');
-        buffer.writeln('                .filter_map(|(_, v)| v.into_userdata::<Box<dyn LuaWidget>>().ok())');
-        buffer.writeln('                .collect()))');
-        buffer.writeln('            .unwrap_or_default();');
-      }
-      buffer.writeln('        widget.$propName = ${propName};');
-    } else if (prop.isChildWidget) {
-      if (isRequired) {
-        buffer.writeln('        let ${propName}: Box<dyn LuaWidget> = args.get("$propName")');
-        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \'$propName\'"))?');
-        buffer.writeln('            .into_userdata()?;');
-      } else {
-        buffer.writeln('        let ${propName}: Option<Box<dyn LuaWidget>> = args.get("$propName")');
-        buffer.writeln('            .ok()');
-        buffer.writeln('            .and_then(|v| v.into_userdata::<Box<dyn LuaWidget>>().ok());');
-      }
-      buffer.writeln('        widget.$propName = ${propName};');
-    } else if (prop.isDataClass) {
-      final nestedStructName = 'Lua${prop.nestedClassName}';
-      if (isRequired) {
-        buffer.writeln('        let ${propName}: Box<$nestedStructName> = args.get("$propName")');
-        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \'$propName\'"))?');
-        buffer.writeln('            .into_userdata()?;');
-      } else {
-        buffer.writeln('        let ${propName}: Option<Box<$nestedStructName>> = args.get("$propName")');
-        buffer.writeln('            .ok()');
-        buffer.writeln('            .and_then(|v| v.into_userdata::<Box<$nestedStructName>>().ok());');
-      }
-      buffer.writeln('        widget.$propName = ${propName};');
-    } else if (prop.isEnum) {
-      // Enum properties are serialized as strings with validation
-      if (isRequired) {
-        buffer.writeln('        let ${propName}: String = args.get("$propName")');
-        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \'$propName\'"))??;');
-        _writeEnumValidation(buffer, luaName, propName, prop.enumValues);
-      } else {
-        buffer.writeln('        let ${propName}: Option<String> = args.get("$propName").ok();');
-        buffer.writeln('        if let Some(ref v) = ${propName} {');
-        _writeEnumValidation(buffer, luaName, propName, prop.enumValues, indent: '            ');
+        buffer.writeln('        let $propName: Option<String> = args.get("$propName").ok();');
+        buffer.writeln('        if let Some(v) = $propName {');
+        buffer.writeln('            map.insert("$propName".to_string(), json!(v));');
         buffer.writeln('        }');
       }
-      buffer.writeln('        widget.$propName = ${propName};');
+    } else if (prop.isChildList) {
+      // Handle child list - each child is a JSON string
+      buffer.writeln('        // Handle $propName (child list)');
+      buffer.writeln('        if let Ok(children_table) = args.get::<Option<Table>>("${propName}") {');
+      buffer.writeln('            if let Some(table) = children_table {');
+      buffer.writeln('                let mut children_json = Vec::new();');
+      buffer.writeln('                for pair in table.pairs::<Value, Value>() {');
+      buffer.writeln('                    if let Ok((_, child_value)) = pair {');
+      buffer.writeln('                        if let Value::String(child_str) = child_value {');
+      buffer.writeln('                            if let Ok(parsed) = serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {');
+      buffer.writeln('                                children_json.push(parsed);');
+      buffer.writeln('                            }');
+      buffer.writeln('                        }');
+      buffer.writeln('                    }');
+      buffer.writeln('                }');
+      buffer.writeln('                map.insert("${propName}".to_string(), json!(children_json));');
+      buffer.writeln('            }');
+      buffer.writeln('        }');
+    } else if (prop.isChildWidget) {
+      // Single child widget
+      buffer.writeln('        // Handle $propName (child widget)');
+      buffer.writeln('        if let Ok(child_value) = args.get::<Option<Value>>("${propName}") {');
+      buffer.writeln('            if let Some(Value::String(child_str)) = child_value {');
+      buffer.writeln('                if let Ok(parsed) = serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {');
+      buffer.writeln('                    map.insert("$propName".to_string(), parsed);');
+      buffer.writeln('                }');
+      buffer.writeln('            }');
+      buffer.writeln('        }');
+    } else if (prop.isDataClass) {
+      // Nested data class
+      buffer.writeln('        // Handle $propName (data class)');
+      buffer.writeln('        let $propName: Option<String> = args.get("$propName")');
+      buffer.writeln('            .ok()');
+      buffer.writeln('            .and_then(|v| v.to_string().ok());');
+      buffer.writeln('        if let Some(v) = $propName {');
+      buffer.writeln('            map.insert("$propName".to_string(), json!(v));');
+      buffer.writeln('        }');
+    } else if (prop.isEnum) {
+      // Enum properties are validated and serialized as strings
+      buffer.writeln('        // Handle $propName (enum)');
+      if (isRequired) {
+        buffer.writeln('        let $propName: String = args.get("$propName")?;');
+        _writeEnumValidation(buffer, luaName, propName, prop.enumValues);
+        buffer.writeln('        map.insert("$propName".to_string(), json!($propName));');
+      } else {
+        buffer.writeln('        let $propName: Option<String> = args.get("$propName").ok();');
+        buffer.writeln('        if let Some(ref v) = $propName {');
+        _writeEnumValidation(buffer, luaName, 'v', prop.enumValues, indent: '            ');
+        buffer.writeln('            map.insert("$propName".to_string(), json!(v));');
+        buffer.writeln('        }');
+      }
     } else {
       // Primitive types
+      final rustType = _getRustPrimitiveType(prop);
+      
+      buffer.writeln('        // Handle $propName ($rustType)');
       if (isRequired) {
-        buffer.writeln('        let ${propName}: $baseRustType = args.get("$propName")');
-        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \'$propName\'"))??;');
+        buffer.writeln('        let $propName: $rustType = args.get("$propName")?;');
+        buffer.writeln('        map.insert("$propName".to_string(), json!($propName));');
       } else {
-        if (isRustNullable) {
-          buffer.writeln('        let ${propName}: $rustType = args.get("$propName").ok();');
-        } else {
-          buffer.writeln('        let ${propName}: Option<$baseRustType> = args.get("$propName").ok();');
-        }
+        buffer.writeln('        let $propName: Option<$rustType> = args.get("$propName").ok();');
+        buffer.writeln('        if let Some(v) = $propName {');
+        buffer.writeln('            map.insert("$propName".to_string(), json!(v));');
+        buffer.writeln('        }');
       }
-      buffer.writeln('        widget.$propName = ${propName};');
     }
     buffer.writeln();
   }
-
+  
   /// Write enum validation code
   void _writeEnumValidation(StringBuffer buffer, String luaName, String propName, List<String>? enumValues, {String indent = '        '}) {
     if (enumValues == null || enumValues.isEmpty) return;
     
     final validValues = enumValues.map((v) => '"$v"').join(', ');
-    // Note: This is called from a context where we have `if let Some(ref v) = propName`, so we validate `v`
-    // Convert v to &str for contains check
-    buffer.writeln('$indent     if ![$validValues].contains(&v.as_str()) {');
+    buffer.writeln('$indent     if ![$validValues].contains(&$propName.as_str()) {');
     buffer.writeln('$indent         return Err(mlua::Error::runtime("$luaName: invalid $propName value"));');
     buffer.writeln('$indent     }');
-  }
-  
-  void _writeDataConstructor(StringBuffer buffer, LuaClassInfo luaClass) {
-    final structName = luaClass.rustStructName;
-    final luaName = luaClass.luaName;
-    
-    buffer.writeln('    // $luaName data class constructor');
-    buffer.writeln('    ui.set("$luaName", lua.create_function(|lua, args: Table| -> Result<Box<$structName>> {');
-    buffer.writeln('        let mut data = $structName::default();');
-    buffer.writeln();
-    
-    for (final prop in luaClass.properties) {
-      final rustType = _getRustPrimitiveType(prop);
-      buffer.writeln('        if let Ok(${prop.name}) = args.get::<${prop.isNullable ? 'Option<' : ''}$rustType>("${prop.name}") {');
-      buffer.writeln('            data.${prop.name} = ${prop.name};');
-      buffer.writeln('        }');
-      buffer.writeln();
-    }
-    
-    buffer.writeln('        Ok(Box::new(data))');
-    buffer.writeln('    })?)?;');
-    buffer.writeln();
   }
   
   void _writeExecuteFunction(StringBuffer buffer) {
@@ -372,53 +194,32 @@ class RustGenerator {
     buffer.writeln('    let lua = Lua::new();');
     buffer.writeln('    setup_lua_api(&lua).map_err(|e| e.to_string())?;');
     buffer.writeln();
-    buffer.writeln('    // Execute the script - it should return a Box<dyn LuaWidget>');
-    buffer.writeln('    // We use a workaround since Box<dyn LuaWidget> doesn\'t implement FromLua');
-    buffer.writeln('    // Instead, we\'ll have the Lua script return a table that we can process');
-    buffer.writeln('    let result: mlua::Value = lua');
+    buffer.writeln('    // Execute the script');
+    buffer.writeln('    let result: Value = lua');
     buffer.writeln('        .load(script)');
     buffer.writeln('        .eval()');
     buffer.writeln('        .map_err(|e| e.to_string())?;');
     buffer.writeln();
-    buffer.writeln('    // For now, we\'ll just convert to JSON string directly');
-    buffer.writeln('    // TODO: Properly convert Lua Value to our widget struct');
-    buffer.writeln('    Ok(result.to_string())');
+    buffer.writeln('    // Extract the result as a string');
+    buffer.writeln('    let result_str = match result {');
+    buffer.writeln('        Value::String(s) => s.to_string_lossy().to_owned(),');
+    buffer.writeln('        _ => return Err("Lua script must return a widget (string)".to_string()),');
+    buffer.writeln('    };');
+    buffer.writeln();
+    buffer.writeln('    Ok(result_str)');
     buffer.writeln('}');
-  }
-  
-  String _getRustFieldType(PropertyInfo prop) {
-    if (prop.isCallback) {
-      return prop.isNullable ? 'Option<String>' : 'String';
-    }
-    if (prop.isChildList) {
-      return 'Vec<Box<dyn LuaWidget>>';
-    }
-    if (prop.isChildWidget) {
-      return prop.isNullable ? 'Option<Box<dyn LuaWidget>>' : 'Box<dyn LuaWidget>';
-    }
-    if (prop.isDataClass) {
-      final className = prop.nestedClassName ?? prop.dartType.replaceAll('?', '');
-      final rustName = 'Lua$className';
-      return prop.isNullable ? 'Option<Box<$rustName>>' : 'Box<$rustName>';
-    }
-    if (prop.isEnum) {
-      // Enums are serialized as strings
-      return prop.isNullable ? 'Option<String>' : 'String';
-    }
-    return _getRustPrimitiveType(prop);
   }
   
   String _getRustPrimitiveType(PropertyInfo prop) {
     final cleanType = prop.nonNullableDartType;
-    final isNullable = prop.isNullable;
     
     switch (cleanType) {
-      case 'String': return isNullable ? 'Option<String>' : 'String';
-      case 'int': return isNullable ? 'Option<i64>' : 'i64';
-      case 'double': return isNullable ? 'Option<f64>' : 'f64';
-      case 'bool': return isNullable ? 'Option<bool>' : 'bool';
-      case 'num': return isNullable ? 'Option<f64>' : 'f64';
-      default: return isNullable ? 'Option<String>' : 'String';
+      case 'String': return 'String';
+      case 'int': return 'i64';
+      case 'double': return 'f64';
+      case 'bool': return 'bool';
+      case 'num': return 'f64';
+      default: return 'String';
     }
   }
 }
