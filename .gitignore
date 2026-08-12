@@ -1,0 +1,7 @@
+*.gen.dart
+build/
+.dart_tool/
+*.swp
+.DS_Store
+idea/
+.vscode/
