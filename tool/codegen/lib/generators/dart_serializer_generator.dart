@@ -4,11 +4,18 @@
 /// - fromJson() extensions for each Lua class
 /// - LuaWidgetRegistry with type-to-constructor mapping
 /// - Helper methods for deserialization
+/// - Enum parsers for enum properties
 
 import '../models/widget_info.dart';
 
 /// Main Dart serializer generator
 class DartSerializerGenerator {
+  /// Set of enum types that have already had parsers generated
+  final Set<String> _generatedEnumParsers = {};
+  
+  /// Buffer for collecting enum parser functions
+  final StringBuffer _enumParsersBuffer = StringBuffer();
+
   /// Generate all serialization code for the given classes
   String generateAll(List<LuaClassInfo> classes) {
     final buffer = StringBuffer();
@@ -22,10 +29,19 @@ class DartSerializerGenerator {
       buffer.writeln();
     }
     
+    // Generate enum parsers (collected during serializer generation)
+    buffer.writeln(_enumParsersBuffer.toString());
+    
     // Generate registry
     _writeRegistry(buffer, classes);
     
     return buffer.toString();
+  }
+
+  /// Reset the generator state (for testing)
+  void clear() {
+    _generatedEnumParsers.clear();
+    _enumParsersBuffer.clear();
   }
   
   void _writeHeader(StringBuffer buffer) {
@@ -82,8 +98,32 @@ class DartSerializerGenerator {
       return 'json[\'${jsonKey}\'] != null ? _${nestedClassName}Serializer.fromJson(json[\'${jsonKey}\'] as Map<String, dynamic>) : null';
     }
     
+    if (prop.isEnum) {
+      // Enum property - generate parser if not already generated
+      final enumType = prop.nonNullableDartType;
+      _generateEnumParser(enumType, prop.enumValues ?? []);
+      return 'json[\'${jsonKey}\'] != null ? _parse$enumType(json[\'${jsonKey}\'] as String?) : null';
+    }
+    
     // Primitive types
     return _generatePrimitiveValue(prop);
+  }
+
+  /// Generate an enum parser function
+  void _generateEnumParser(String enumType, List<String> values) {
+    if (_generatedEnumParsers.contains(enumType)) return;
+    _generatedEnumParsers.add(enumType);
+    
+    _enumParsersBuffer.writeln('$enumType? _parse$enumType(String? value) {');
+    _enumParsersBuffer.writeln('  if (value == null) return null;');
+    _enumParsersBuffer.writeln('  switch (value) {');
+    for (final val in values) {
+      _enumParsersBuffer.writeln('    case \'$val\': return $enumType.$val;');
+    }
+    _enumParsersBuffer.writeln('    default: throw FormatException(\'Unknown $enumType value: \$value\');');
+    _enumParsersBuffer.writeln('  }');
+    _enumParsersBuffer.writeln('}');
+    _enumParsersBuffer.writeln();
   }
   
   String _generatePrimitiveValue(PropertyInfo prop) {
