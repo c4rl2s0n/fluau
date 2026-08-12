@@ -31,7 +31,6 @@ pub struct LuaLuaColumnWidget {
     pub spacing: Option<f64>,
     pub mainAxisAlignment: Option<String>,
     pub crossAxisAlignment: Option<String>,
-    pub children: Option<String>,
     pub children: Vec<Box<dyn LuaWidget>>,
 }
 
@@ -42,7 +41,6 @@ impl Default for LuaLuaColumnWidget {
             mainAxisAlignment: Default::default(),
             crossAxisAlignment: Default::default(),
             children: Default::default(),
-            children: Vec::new(),
         }
     }
 }
@@ -59,7 +57,6 @@ impl LuaWidget for LuaLuaColumnWidget {
         map.insert("mainAxisAlignment".to_string(), self._serialize_mainAxisAlignment());
         map.insert("crossAxisAlignment".to_string(), self._serialize_crossAxisAlignment());
         map.insert("children".to_string(), self._serialize_children());
-        map.insert("children".to_string(), json!(self.children.iter().map(|c| c.to_json()).collect::<Vec<_>>()));
         json!(map)
     }
 }
@@ -77,7 +74,7 @@ impl LuaWidget for LuaLuaColumnWidget {
     }
 
     fn _serialize_children(&self) -> JsonValue {
-        json!(&self.children)
+        json!(self.children.iter().map(|c| c.to_json()).collect::<Vec<_>>())
     }
 
 impl FromLua for LuaLuaColumnWidget {
@@ -95,7 +92,7 @@ impl FromLua for LuaLuaColumnWidget {
 pub struct LuaLuaButtonWidget {
     pub text: Option<String>,
     pub onPressed: Option<String>,
-    pub child: Option<String>,
+    pub child: Option<Box<dyn LuaWidget>>,
 }
 
 impl Default for LuaLuaButtonWidget {
@@ -132,7 +129,10 @@ impl LuaWidget for LuaLuaButtonWidget {
     }
 
     fn _serialize_child(&self) -> JsonValue {
-        json!(&self.child)
+        match &self.child {
+            Some(c) => c.to_json(),
+            None => JsonValue::Null,
+        }
     }
 
 impl FromLua for LuaLuaButtonWidget {
@@ -214,7 +214,7 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
     ui.set("Column", lua.create_function(|lua, args: Table| -> Result<Box<dyn LuaWidget>> {
         let mut widget = LuaLuaColumnWidget::default();
 
-        let spacing: Option<Option<f64>> = args.get("spacing").ok();
+        let spacing: Option<f64> = args.get("spacing").ok();
         widget.spacing = spacing;
 
         let mainAxisAlignment: Option<String> = args.get("mainAxisAlignment").ok();
@@ -233,17 +233,13 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
         }
         widget.crossAxisAlignment = crossAxisAlignment;
 
-        let children: Option<Option<String>> = args.get("children").ok();
+        let children: Vec<Box<dyn LuaWidget>> = args.get("children")
+            .ok()
+            .and_then(|t: Table| Some(t.into_iter()
+                .filter_map(|(_, v)| v.into_userdata::<Box<dyn LuaWidget>>().ok())
+                .collect()))
+            .unwrap_or_default();
         widget.children = children;
-
-        // Handle children
-        if let Ok(children_table) = args.get::<Table>("children") {
-            for (_, child_value) in children_table.pairs::<Value, Value>() {
-                if let Ok(child) = child_value.into_userdata::<Box<dyn LuaWidget>>() {
-                    widget.children.push(child);
-                }
-            }
-        }
 
         Ok(Box::new(widget))
     })?)?;
@@ -252,13 +248,15 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
     ui.set("Button", lua.create_function(|lua, args: Table| -> Result<Box<dyn LuaWidget>> {
         let mut widget = LuaLuaButtonWidget::default();
 
-        let text: Option<Option<String>> = args.get("text").ok();
+        let text: Option<String> = args.get("text").ok();
         widget.text = text;
 
         let onPressed: Option<String> = args.get("onPressed").ok();
         widget.onPressed = onPressed;
 
-        let child: Option<Option<String>> = args.get("child").ok();
+        let child: Option<Box<dyn LuaWidget>> = args.get("child")
+            .ok()
+            .and_then(|v| v.into_userdata::<Box<dyn LuaWidget>>().ok());
         widget.child = child;
 
         Ok(Box::new(widget))

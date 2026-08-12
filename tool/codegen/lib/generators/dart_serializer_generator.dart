@@ -82,13 +82,12 @@ class DartSerializerGenerator {
     }
     
     if (prop.isChildList) {
-      // List of widgets
+      // List of widgets - use the type information to deserialize
       return '_deserializeWidgetList(json[\'${jsonKey}\'] as List?)';
     }
     
     if (prop.isChildWidget) {
-      // Single widget - but in our architecture, children are handled via @LuaChildren
-      // This shouldn't happen in practice
+      // Single widget child
       return 'json[\'${jsonKey}\'] != null ? _deserializeWidget(json[\'${jsonKey}\'] as Map<String, dynamic>) : null';
     }
     
@@ -152,34 +151,42 @@ class DartSerializerGenerator {
   
   void _writeRegistry(StringBuffer buffer, List<LuaClassInfo> classes) {
     buffer.writeln('/// Widget registry for Lua widgets');
-    buffer.writeln('/// Maps widget type names to deserialization functions');
+    buffer.writeln('/// Maps widget type names to their deserialization functions');
     buffer.writeln('class LuaWidgetRegistry {');
     buffer.writeln('  static final Map<String, LuaWidgetInterface Function(Map<String, dynamic>)> _builders = {');
     
-    // Add widget builders
+    // Add widget builders - these are used by fromJson
     for (final luaClass in classes.where((c) => c.isWidget)) {
       buffer.writeln('    \'${luaClass.luaName}\': (json) => _${luaClass.dartClassName}Serializer.fromJson(json),');
     }
     
     buffer.writeln('  };');
     buffer.writeln();
-    buffer.writeln('  /// Build a widget from JSON map');
-    buffer.writeln('  ///');
-    buffer.writeln('  /// # Arguments');
-    buffer.writeln('  /// * `type` - The widget type name (e.g., \'Text\', \'Button\')');
-    buffer.writeln('  /// * `json` - The JSON map containing widget properties');
-    buffer.writeln('  /// * `context` - The Flutter build context');
-    buffer.writeln('  ///');
-    buffer.writeln('  /// # Returns');
-    buffer.writeln('  /// The built Flutter widget');
-    buffer.writeln('  static Widget build(String type, Map<String, dynamic> json, BuildContext context) {');
+    buffer.writeln('  /// Deserialize a widget from JSON (without building it)');
+    buffer.writeln('  /// The [type] parameter should be the Lua widget type name (e.g., \'Text\', \'Button\').');
+    buffer.writeln('  static LuaWidgetInterface fromJson(String type, Map<String, dynamic> json) {');
     buffer.writeln('    final builder = _builders[type];');
     buffer.writeln('    if (builder != null) {');
-    buffer.writeln('      final widget = builder(json);');
-    buffer.writeln('      return widget.build(context);');
+    buffer.writeln('      return builder(json);');
     buffer.writeln('    }');
-    buffer.writeln('    // Unknown widget type - return empty widget');
     buffer.writeln('    return const LuaEmptyWidget();');
+    buffer.writeln('  }');
+    buffer.writeln();
+    buffer.writeln('  /// Build a widget from a JSON map (with type field) and context');
+    buffer.writeln('  /// This is the main entry point for building widgets from Lua JSON.');
+    buffer.writeln('  static Widget buildFromMap(BuildContext context, Map<String, dynamic> widgetMap) {');
+    buffer.writeln('    final widgetType = widgetMap[\'type\'] as String?;');
+    buffer.writeln('    if (widgetType == null) {');
+    buffer.writeln('      return const LuaEmptyWidget();');
+    buffer.writeln('    }');
+    buffer.writeln();
+    buffer.writeln('    // Remove type from properties');
+    buffer.writeln('    final properties = Map<String, dynamic>.from(widgetMap);');
+    buffer.writeln('    properties.remove(\'type\');');
+    buffer.writeln();
+    buffer.writeln('    // Deserialize and build');
+    buffer.writeln('    final widget = fromJson(widgetType, properties);');
+    buffer.writeln('    return widget.build(context);');
     buffer.writeln('  }');
     buffer.writeln('}');
     buffer.writeln();
@@ -189,28 +196,33 @@ class DartSerializerGenerator {
   }
   
   void _writeHelperFunctions(StringBuffer buffer, List<LuaClassInfo> classes) {
-    // Deserialize a list of child widgets
+    // Deserialize a list of child widgets from JSON
     buffer.writeln('/// Deserialize a list of child widgets from JSON');
+    buffer.writeln('/// Each child widget JSON should have a "type" field indicating its widget type.');
     buffer.writeln('List<LuaWidgetInterface> _deserializeWidgetList(List<dynamic>? json) {');
     buffer.writeln('  if (json == null) return [];');
     buffer.writeln('  return json.map((item) => _deserializeWidget(item as Map<String, dynamic>)).toList();');
     buffer.writeln('}');
     buffer.writeln();
     
-    // Deserialize a single widget
+    // Deserialize a single widget from JSON
     buffer.writeln('/// Deserialize a single widget from JSON');
+    buffer.writeln('/// This creates the widget instance but does NOT build it.');
+    buffer.writeln('/// The build() method will be called later with proper BuildContext.');
+    buffer.writeln('/// The JSON should have a "type" field indicating the widget type.');
     buffer.writeln('LuaWidgetInterface _deserializeWidget(Map<String, dynamic> json) {');
-    buffer.writeln('  final type = json[\'type\'] as String?;');
-    buffer.writeln('  if (type == null) {');
+    buffer.writeln('  final widgetType = json[\'type\'] as String?;');
+    buffer.writeln('  if (widgetType == null) {');
     buffer.writeln('    return const LuaEmptyWidget();');
     buffer.writeln('  }');
-    buffer.writeln('  return LuaWidgetRegistry.build(type, json, BuildContext); // Note: context not available here');
+    buffer.writeln();
+    buffer.writeln('  // Remove type from the JSON before deserializing');
+    buffer.writeln('  final properties = Map<String, dynamic>.from(json);');
+    buffer.writeln('  properties.remove(\'type\');');
+    buffer.writeln();
+    buffer.writeln('  // Use the registry to deserialize');
+    buffer.writeln('  return LuaWidgetRegistry.fromJson(widgetType, properties);');
     buffer.writeln('}');
     buffer.writeln();
-    
-    // Note: The _deserializeWidget function has a limitation - it needs BuildContext
-    // but can't get it. This is okay because the registry.build() method handles it.
-    // The children deserialization happens within the parent widget's build method
-    // where context is available.
   }
 }

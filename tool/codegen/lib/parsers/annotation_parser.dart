@@ -255,24 +255,43 @@ class AnnotationParser {
     bool isChildWidget = false;
     bool isChildList = false;
     
-    // Check if the type is LuaWidgetInterface (our base interface)
+    // Check if the field type is LuaWidgetInterface or List<LuaWidgetInterface>
     if (field.type.element?.name == 'LuaWidgetInterface') {
-      // Check if it's a List<LuaWidgetInterface>
-      if (field.type is InterfaceType && field.type.element?.name == 'List') {
-        isChildList = true;
-      } else {
-        isChildWidget = true;
+      // Direct LuaWidgetInterface type
+      isChildWidget = true;
+    } else if (field.type is InterfaceType) {
+      // Check if it's List<T> where T is LuaWidgetInterface or a LuaWidget
+      final interfaceType = field.type as InterfaceType;
+      if (interfaceType.element?.name == 'List') {
+        // This is a List type, check its type arguments
+        final typeArgs = interfaceType.typeArguments;
+        if (typeArgs.isNotEmpty) {
+          final argType = typeArgs.first;
+          final argElement = argType.element;
+          
+          // Check if the list element type is LuaWidgetInterface
+          if (argElement?.name == 'LuaWidgetInterface') {
+            isChildList = true;
+          } else if (argElement is ClassElement) {
+            // Check if it's a LuaWidget class
+            for (final annotation in argElement.metadata) {
+              final constant = annotation.computeConstantValue();
+              if (constant?.type?.getDisplayString(withNullability: false) == 'LuaWidget') {
+                isChildList = true;
+                nestedClassName = argElement.name;
+                break;
+              }
+            }
+          }
+        }
       }
     } else if (typeElement is ClassElement) {
+      // Check if this class is a LuaWidget
       for (final annotation in typeElement.metadata) {
         final constant = annotation.computeConstantValue();
         if (constant?.type?.getDisplayString(withNullability: false) == 'LuaWidget') {
-          // Check if it's a List<LuaWidget>
-          if (field.type is InterfaceType && field.type.element?.name == 'List') {
-            isChildList = true;
-          } else {
-            isChildWidget = true;
-          }
+          // Single child widget
+          isChildWidget = true;
           nestedClassName = typeElement.name;
           break;
         }

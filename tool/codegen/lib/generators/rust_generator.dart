@@ -64,6 +64,9 @@ class RustGenerator {
     final structName = luaClass.rustStructName;
     final luaName = luaClass.luaName;
     
+    // Check if any property is a child list (in which case we don't need a separate children field)
+    final hasChildListProperty = luaClass.properties.any((p) => p.isChildList);
+    
     // Struct definition
     buffer.writeln('/// Generated from Dart ${luaClass.dartClassName}');
     buffer.writeln('#[derive(Debug, Clone)]');
@@ -79,7 +82,10 @@ class RustGenerator {
       buffer.writeln('    pub ${prop.name}: $rustType,');
     }
     
-    if (luaClass.hasChildren) {
+    // Only add children field if hasChildren is true but there's no child list property
+    // This handles the case where @LuaWidget(hasChildren: true) is set but the property
+    // uses @LuaChildren annotation (which we want to use)
+    if (luaClass.hasChildren && !hasChildListProperty) {
       buffer.writeln('    pub children: Vec<Box<dyn LuaWidget>>,');
     }
     
@@ -93,7 +99,7 @@ class RustGenerator {
     for (final prop in luaClass.properties) {
       buffer.writeln('            ${prop.name}: Default::default(),');
     }
-    if (luaClass.hasChildren) {
+    if (luaClass.hasChildren && !hasChildListProperty) {
       buffer.writeln('            children: Vec::new(),');
     }
     buffer.writeln('        }');
@@ -103,7 +109,7 @@ class RustGenerator {
     
     // LuaWidget impl (only for widgets)
     if (luaClass.isWidget) {
-      _writeLuaWidgetImpl(buffer, structName, luaName, luaClass);
+      _writeLuaWidgetImpl(buffer, structName, luaName, luaClass, hasChildListProperty);
     }
     
     // FromLua impl for Box<struct>
@@ -112,7 +118,7 @@ class RustGenerator {
     }
   }
   
-  void _writeLuaWidgetImpl(StringBuffer buffer, String structName, String luaName, LuaClassInfo luaClass) {
+  void _writeLuaWidgetImpl(StringBuffer buffer, String structName, String luaName, LuaClassInfo luaClass, bool hasChildListProperty) {
     buffer.writeln('impl LuaWidget for $structName {');
     buffer.writeln('    fn widget_type(&self) -> &\'static str {');
     buffer.writeln('        "$luaName"');
@@ -126,7 +132,8 @@ class RustGenerator {
       buffer.writeln('        map.insert("${prop.name}".to_string(), self._serialize_${prop.name}());');
     }
     
-    if (luaClass.hasChildren) {
+    // Only add children serialization if there's a separate children field
+    if (luaClass.hasChildren && !hasChildListProperty) {
       buffer.writeln('        map.insert("children".to_string(), json!(self.children.iter().map(|c| c.to_json()).collect::<Vec<_>>()));');
     }
     
@@ -220,6 +227,9 @@ class RustGenerator {
     final structName = luaClass.rustStructName;
     final luaName = luaClass.luaName;
     
+    // Check if any property is a child list
+    final hasChildListProperty = luaClass.properties.any((p) => p.isChildList);
+    
     buffer.writeln('    // $luaName widget constructor');
     buffer.writeln('    ui.set("$luaName", lua.create_function(|lua, args: Table| -> Result<Box<dyn LuaWidget>> {');
     buffer.writeln('        let mut widget = $structName::default();');
@@ -229,7 +239,8 @@ class RustGenerator {
       _writePropertyExtraction(buffer, luaName, luaClass, prop);
     }
     
-    if (luaClass.hasChildren) {
+    // Only add children handling if hasChildren is true but there's no child list property
+    if (luaClass.hasChildren && !hasChildListProperty) {
       buffer.writeln('        // Handle children');
       buffer.writeln('        if let Ok(children_table) = args.get::<Table>("children") {');
       buffer.writeln('            for (_, child_value) in children_table.pairs::<Value, Value>() {');
@@ -250,6 +261,12 @@ class RustGenerator {
     final propName = prop.name;
     final isRequired = prop.required;
     
+    // Get the Rust type without the Option wrapper (we'll handle nullability separately)
+    String rustType = _getRustFieldType(prop);
+    // Remove Option<...> wrapper if present
+    final isRustNullable = rustType.startsWith('Option<');
+    final baseRustType = isRustNullable ? rustType.replaceFirst('Option<', '').replaceFirst('>', '') : rustType;
+    
     if (prop.isCallback) {
       if (isRequired) {
         buffer.writeln('        let ${propName}: String = args.get("$propName")');
@@ -259,7 +276,23 @@ class RustGenerator {
       }
       buffer.writeln('        widget.$propName = ${propName};');
     } else if (prop.isChildList) {
-      // Handled in children block
+      // Handle child list properties (e.g., List<LuaWidgetInterface>)
+      if (isRequired) {
+        buffer.writeln('        let ${propName}: Vec<Box<dyn LuaWidget>> = args.get("$propName")');
+        buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \"$propName\""))?');
+        buffer.writeln('            .into_table()?');
+        buffer.writeln('            .iter()');
+        buffer.writeln('            .filter_map(|(_, v)| v.into_userdata::<Box<dyn LuaWidget>>().ok())');
+        buffer.writeln('            .collect();');
+      } else {
+        buffer.writeln('        let ${propName}: Vec<Box<dyn LuaWidget>> = args.get("$propName")');
+        buffer.writeln('            .ok()');
+        buffer.writeln('            .and_then(|t: Table| Some(t.into_iter()');
+        buffer.writeln('                .filter_map(|(_, v)| v.into_userdata::<Box<dyn LuaWidget>>().ok())');
+        buffer.writeln('                .collect()))');
+        buffer.writeln('            .unwrap_or_default();');
+      }
+      buffer.writeln('        widget.$propName = ${propName};');
     } else if (prop.isChildWidget) {
       if (isRequired) {
         buffer.writeln('        let ${propName}: Box<dyn LuaWidget> = args.get("$propName")');
@@ -297,12 +330,16 @@ class RustGenerator {
       }
       buffer.writeln('        widget.$propName = ${propName};');
     } else {
-      final rustType = _getRustPrimitiveType(prop);
+      // Primitive types
       if (isRequired) {
-        buffer.writeln('        let ${propName}: $rustType = args.get("$propName")');
+        buffer.writeln('        let ${propName}: $baseRustType = args.get("$propName")');
         buffer.writeln('            .ok_or_else(|| mlua::Error::runtime("$luaName: missing required property \"$propName\""))??;');
       } else {
-        buffer.writeln('        let ${propName}: Option<$rustType> = args.get("$propName").ok();');
+        if (isRustNullable) {
+          buffer.writeln('        let ${propName}: $rustType = args.get("$propName").ok();');
+        } else {
+          buffer.writeln('        let ${propName}: Option<$baseRustType> = args.get("$propName").ok();');
+        }
       }
       buffer.writeln('        widget.$propName = ${propName};');
     }
@@ -314,9 +351,10 @@ class RustGenerator {
     if (enumValues == null || enumValues.isEmpty) return;
     
     final validValues = enumValues.map((v) => '"$v"').join(', ');
-    buffer.writeln('$indent if ![$validValues].contains(&${propName}.as_str()) {');
-    buffer.writeln('$indent     return Err(mlua::Error::runtime("$luaName: invalid $propName value"));');
-    buffer.writeln('$indent }');
+    // Note: This is called from a context where we have `if let Some(ref v) = propName`, so we validate `v`
+    buffer.writeln('$indent     if ![$validValues].contains(v) {');
+    buffer.writeln('$indent         return Err(mlua::Error::runtime("$luaName: invalid $propName value"));');
+    buffer.writeln('$indent     }');
   }
   
   void _writeDataConstructor(StringBuffer buffer, LuaClassInfo luaClass) {
