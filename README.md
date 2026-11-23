@@ -34,29 +34,30 @@ flutter run -d linux
 
 Pick **ProtonVPN** in the demo dropdown, sign in with a real Proton account, and browse servers (list-only; no tunnel). **Fake ProtonVPN** still uses stub HTTP for offline demos.
 
-## Codegen
+## Generated artifacts / stubs
 
-When you change the annotated UI catalog:
+| Artifact | Source | Updates |
+|----------|--------|---------|
+| `assets/plugins/_types/ui.d.luau` | Dart `@LuaWidget` catalog | `./tool/generate.sh` |
+| `lib/lua/widgets/widget_serializers.g.dart` | same | same |
+| `rust/src/lua_engine.rs` | same | same |
+| `assets/plugins/_types/host.d.luau` | Rust `Host*` traits | **Automatic** on `cargo build` / `flutter run`; also refreshed by `./tool/generate.sh` |
+| `assets/plugins/_types/plugin.d.luau` | lifecycle / intents | Hand-maintained |
+| FRB Dart↔Rust glue | `#[frb]` APIs | `flutter_rust_bridge_codegen generate` when FFI changes |
+
+This project does **not** use Dart `build_runner` for the Lua catalog — codegen is [`tool/codegen`](tool/codegen).
 
 ```bash
-cd tool/codegen && dart pub get
-dart run bin/lua_plugin_codegen.dart --generate \
-  --input ../../lib/lua/widgets \
-  --rust-out ../../rust/src \
-  --dart-out ../../lib/lua/widgets \
-  --luau-out ../../assets/plugins/_types
+# After changing the UI catalog and/or host traits:
+./tool/generate.sh
 
-flutter_rust_bridge_codegen generate
+# Optional: fail if committed generated files are stale
+./tool/check_generated.sh
 ```
 
-This regenerates Rust/Dart widget bindings and Luau definition stubs under
-`assets/plugins/_types/ui.d.luau`. Host stubs (`host.d.luau`) regenerate on every
-`cargo build` of the Rust crate from annotated host traits (`HostDb`, `HostHttp`, …).
-Lifecycle stubs (`plugin.d.luau`) remain hand-maintained.
-
-For typed autocomplete while editing plugins, install
-[luau-lsp](https://github.com/JohnnyMorganz/luau-lsp). Workspace settings load
-the definition files; `assets/plugins/.luaurc` enables strict mode.
+Details: [CODEGEN_OVERVIEW.md](CODEGEN_OVERVIEW.md). For plugin editor autocomplete, install
+[luau-lsp](https://github.com/JohnnyMorganz/luau-lsp); workspace settings and
+`assets/plugins/.luaurc` load the definition files.
 
 ## Notes
 

@@ -21,13 +21,13 @@ The catalog is the closed vocabulary of nodes a plugin may emit. Dart annotated 
 
 Use this path when plugins need a new interaction shape (another input, layout, or feedback control) that still fits the snapshot-and-event model: values as data, presses as event maps, no live Lua callbacks across the bridge.
 
-After adding a widget, run the project’s codegen and bridge generate steps (commands live in the README), then exercise it from a small plugin before relying on it in a real package.
+After adding a widget, run [`./tool/generate.sh`](../tool/generate.sh) so serializers, `lua_engine.rs`, and `ui.d.luau` stay in sync. Only run `flutter_rust_bridge_codegen generate` if you also changed FRB-exposed APIs. Then exercise the control from a small plugin before relying on it in a real package. See [CODEGEN_OVERVIEW.md](../CODEGEN_OVERVIEW.md).
 
 ## Extending host services
 
 Host services are the privilege boundary. Add one when plugins need an operation that must not be implementable in pure Luau (or should not be duplicated in every package): networking policy, durable or shared storage, system crypto, logging sinks, and similar.
 
-Wire new behavior behind the existing permission model so packages still declare what they need. Keep allowlists and sandbox assumptions intact. Document the *capability category* and threat model in architecture docs if the trust surface changes; leave call signatures in code.
+Implement new surface as annotated host traits / UserData under `rust/src/host/` (`#[host_module]`, `HostType`, `HostUserData`). Luau `host.d.luau` regenerates automatically on the next `cargo build` or `flutter run` (via `rust/build.rs`); `./tool/generate.sh` also refreshes it. Wire behavior behind the existing permission model so packages still declare what they need. Keep allowlists and sandbox assumptions intact. Document the *capability category* and threat model in architecture docs if the trust surface changes; leave call signatures in code.
 
 ## Adding capabilities
 
@@ -45,8 +45,12 @@ Prefer copying the structure of an existing package over inventing a new layout.
 
 Typical iteration:
 
-1. Change Dart catalog annotations, host Rust, or a plugin package.
-2. Regenerate codegen / bridge when the catalog or FFI surface moved.
+1. Change Dart catalog annotations, host Rust traits, or a plugin package.
+2. Regenerate as needed:
+   - UI catalog change → `./tool/generate.sh`
+   - Host trait / DTO change → `flutter run` / `cargo build` is enough for `host.d.luau`, or run `./tool/generate.sh`
+   - FRB API change → `flutter_rust_bridge_codegen generate`
+   - Optional freshness check → `./tool/check_generated.sh`
 3. Run the Linux (or other) Flutter target and select the plugin under test.
 
 Treat architecture and plugin docs as part of the change when you alter boundaries (new trust category, new lifecycle phase, or a different UI bridge strategy). Do not update docs merely to list renamed symbols.

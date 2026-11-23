@@ -42,9 +42,20 @@ UI is not the only way the app talks to a plugin. A package can advertise **capa
 
 The demo uses a VPN-provider capability so the Flutter shell can ask for status, selected config, or logout through a typed facade. If you add a capability, document the method set for app authors and keep the UI and headless paths consistent about shared state (for example login session kept in plugin storage).
 
+## Luau stubs and editor support
+
+Definition files live under `assets/plugins/_types/`:
+
+| File | Covers | Maintained by |
+|------|--------|----------------|
+| `ui.d.luau` | `ui.*` widget constructors | Generated (`./tool/generate.sh`) |
+| `host.d.luau` | `host.db` / `host.http` / `host.crypto` / `host.log` | Generated on Cargo/Flutter build |
+| `plugin.d.luau` | lifecycle / intent shapes | Hand-maintained |
+
+Install [luau-lsp](https://github.com/JohnnyMorganz/luau-lsp). Workspace settings and `assets/plugins/.luaurc` point the language server at those files. Prefer the stubs over guessing host or widget shapes.
+
 ## Authoring tips
 
 - Start from the fake VPN package if you want a minimal login → list → provide-result flow without real network crypto.
 - Use the Proton VPN package when you need multi-module structure, allowlisted HTTPS, and non-trivial Luau.
-- For editor assistance, the repo can generate Luau definition stubs for the UI catalog; see the README for the codegen and LSP setup.
 - Stay inside the published UI vocabulary. If you need a new control, that is a framework change (see [Developing](DEVELOPING.md)), not something a single plugin can invent.

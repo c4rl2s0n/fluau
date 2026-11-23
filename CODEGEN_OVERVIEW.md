@@ -1,8 +1,30 @@
 # Lua Plugin Codegen Overview
 
-This document explains how the code generation system works for the Lua Flutter Plugin framework.
+This document explains how code generation and Luau stubs work for the Lua Flutter Plugin framework.
 
-## Architecture
+## Inventory: what is generated
+
+| Artifact | Source of truth | How it updates |
+|----------|-----------------|----------------|
+| `assets/plugins/_types/ui.d.luau` | Dart `@LuaWidget` under `lib/lua/widgets/` | [`./tool/generate.sh`](tool/generate.sh) (Dart CLI) |
+| `lib/lua/widgets/widget_serializers.g.dart` | same | same |
+| `rust/src/lua_engine.rs` (+ `api/lua.rs`) | same | same |
+| `assets/plugins/_types/host.d.luau` | Rust host traits under `rust/src/host/` | **Automatic** via [`rust/build.rs`](rust/build.rs) on every `cargo build` / Flutter cargokit build; also via `./tool/generate.sh` |
+| `assets/plugins/_types/plugin.d.luau` | Plugin lifecycle / intent shapes | **Hand-maintained** |
+| FRB bindings | Rust `#[frb]` | `flutter_rust_bridge_codegen generate` when the FFI surface changes |
+
+**Not `build_runner`.** Widget/host catalog codegen is a custom Dart tool in [`tool/codegen`](tool/codegen) (kept out of the root `pubspec.yaml` to avoid analyzer conflicts) plus Rust `build.rs` for host stubs. Do not add `build_runner` for this pipeline.
+
+**One command for developers:**
+
+```bash
+./tool/generate.sh          # widgets + host stubs
+./tool/check_generated.sh   # regenerate and fail if git diff is dirty
+```
+
+Widget outputs are **committed inputs** to the Rust compile (`lua_engine.rs`). They cannot be produced by Cargo `build.rs` without circular coupling. Host stubs *can* and do refresh on every Cargo/Flutter native build.
+
+## Widget codegen architecture
 
 ```
 Dart Source Files
@@ -28,18 +50,25 @@ Rust: lua_engine.rs + api/lua.rs
 Luau: assets/plugins/_types/ui.d.luau
 ```
 
-## Codegen Flow
+## Widget codegen flow
 
 ### 1. CLI Entry Point
 
-Run via Flutter or Dart:
+Prefer the repo script:
 
 ```bash
-flutter pub run lua_plugin_codegen --generate \
-  --input lib/lua/widgets \
-  --rust-out rust/src \
-  --dart-out lib/lua/widgets \
-  --luau-out assets/plugins/_types
+./tool/generate.sh
+```
+
+Or invoke the CLI directly:
+
+```bash
+cd tool/codegen && dart pub get
+dart run bin/lua_plugin_codegen.dart --generate \
+  --input ../../lib/lua/widgets \
+  --rust-out ../../rust/src \
+  --dart-out ../../lib/lua/widgets \
+  --luau-out ../../assets/plugins/_types
 ```
 
 ### 2. Annotation Parser
@@ -159,9 +188,13 @@ Emits `assets/plugins/_types/ui.d.luau` for luau-lsp: enum string unions, per-wi
 
 Host modules are annotated traits (`#[host_module]`, `#[lua]`, `HostType`, `HostUserData`) under `rust/src/host/`. On every `cargo build` of `rust_lib_luatest`, [`rust/build.rs`](rust/build.rs) runs `host_api_meta` and regenerates `assets/plugins/_types/host.d.luau`.
 
-- Widgets: Dart annotations → Dart codegen CLI
-- Host: Rust traits/UserData → Cargo build.rs
-- Lifecycle intents (`plugin.d.luau`): still hand-maintained
+| Layer | Mechanism |
+|-------|-----------|
+| Widgets + `ui.d.luau` | Dart annotations → [`tool/codegen`](tool/codegen) / [`./tool/generate.sh`](tool/generate.sh) |
+| Host + `host.d.luau` | Rust traits/UserData → Cargo `build.rs` (also run by `./tool/generate.sh`) |
+| Lifecycle intents | `plugin.d.luau` hand-maintained |
+
+To verify committed outputs are fresh: [`./tool/check_generated.sh`](tool/check_generated.sh).
 
 ## Type Support
 
@@ -308,11 +341,11 @@ String? onPressed;  // Stored as callback ID
 ## Running Codegen
 
 ```bash
-# From project root
-flutter pub run lua_plugin_codegen --generate \
-  --input lib/lua/widgets \
-  --rust-out rust/src \
-  --dart-out lib/lua/widgets
+# From project root — preferred
+./tool/generate.sh
+./tool/check_generated.sh   # optional freshness check
+
+# Or call the Dart CLI directly (see Widget codegen flow above)
 ```
 
 ## Dependencies (codegen tool)
