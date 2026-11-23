@@ -1,5 +1,6 @@
 //! Rust-side host APIs used while draining plugin intents and sync Lua `host.*`.
 
+pub mod api_registry;
 pub mod crypto;
 pub mod crypto_api;
 pub mod db;
@@ -9,10 +10,12 @@ pub mod http;
 pub mod http_api;
 pub mod http_client;
 pub mod log_api;
+pub mod permissions;
 pub mod types;
 
 pub use facade::Host;
 pub use http_api::HttpClient;
+pub use permissions::{PermissionGate, PermissionUse, SessionGrants};
 pub use types::*;
 
 use serde_json::{json, Value};
@@ -35,6 +38,13 @@ pub fn execute_intent(plugin_id: &str, intent: &Value) -> Result<IntentOutcome, 
                 .and_then(|v| v.as_str())
                 .unwrap_or("GET");
             let url = intent.get("url").and_then(|v| v.as_str()).unwrap_or("");
+            PermissionGate::require_with(
+                plugin_id,
+                "http",
+                &PermissionUse::Http {
+                    url: url.to_string(),
+                },
+            )?;
             let body = intent.get("body");
             let headers = intent.get("headers");
             let response = http_client::with_client(plugin_id, |client| {
@@ -50,7 +60,9 @@ pub fn execute_intent(plugin_id: &str, intent: &Value) -> Result<IntentOutcome, 
                         .unwrap()
                         .insert("headers".into(), h.clone());
                 }
-                let mut response = client.request(&opts);
+                // Gate already checked domains; skip client allowlist double-deny by
+                // using an empty allowlist on the intent path (client still used for cookies).
+                let mut response = client.request_unchecked(&opts);
                 if let Value::Object(ref mut map) = response {
                     map.insert("type".into(), json!("http"));
                     map.insert("requestId".into(), request_id.clone());
@@ -60,6 +72,7 @@ pub fn execute_intent(plugin_id: &str, intent: &Value) -> Result<IntentOutcome, 
             Ok(IntentOutcome::HostResult(response))
         }
         "db.set" => {
+            PermissionGate::require(plugin_id, "db")?;
             let key = intent.get("key").and_then(|v| v.as_str()).unwrap_or("");
             let value = intent
                 .get("value")
@@ -76,6 +89,7 @@ pub fn execute_intent(plugin_id: &str, intent: &Value) -> Result<IntentOutcome, 
             })))
         }
         "db.get" => {
+            PermissionGate::require(plugin_id, "db")?;
             let key = intent.get("key").and_then(|v| v.as_str()).unwrap_or("");
             let value = db::get(plugin_id, key)?;
             Ok(IntentOutcome::HostResult(json!({

@@ -5,13 +5,18 @@ use serde_json::{json, Value as JsonValue};
 
 use super::crypto;
 use super::facade::Host;
+use super::permissions::PermissionGate;
 use super::types::{
     CryptoBase64DecodeOpts, CryptoBase64DecodeResult, CryptoBase64EncodeResult, CryptoBcryptOpts,
     CryptoBcryptResult, CryptoBytesInput, CryptoDigestResult, CryptoModPowOpts, CryptoModPowResult,
     CryptoRandomOpts, CryptoRandomResult,
 };
 
-#[host_module(path = "crypto")]
+#[host_module(
+    path = "crypto",
+    permission = "crypto",
+    summary = "Generic cryptographic primitives"
+)]
 pub trait HostCrypto {
     #[lua(name = "sha256")]
     fn sha256(&self, input: CryptoBytesInput) -> Result<CryptoDigestResult, String>;
@@ -43,18 +48,22 @@ pub trait HostCrypto {
 
 impl HostCrypto for Host {
     fn sha256(&self, input: CryptoBytesInput) -> Result<CryptoDigestResult, String> {
+        PermissionGate::require(&self.plugin_id, "crypto")?;
         digest_from_dispatch("sha256", &bytes_to_json(&input))
     }
 
     fn sha512(&self, input: CryptoBytesInput) -> Result<CryptoDigestResult, String> {
+        PermissionGate::require(&self.plugin_id, "crypto")?;
         digest_from_dispatch("sha512", &bytes_to_json(&input))
     }
 
     fn md5(&self, input: CryptoBytesInput) -> Result<CryptoDigestResult, String> {
+        PermissionGate::require(&self.plugin_id, "crypto")?;
         digest_from_dispatch("md5", &bytes_to_json(&input))
     }
 
     fn random_bytes(&self, opts: CryptoRandomOpts) -> Result<CryptoRandomResult, String> {
+        PermissionGate::require(&self.plugin_id, "crypto")?;
         let v = crypto::dispatch("randomBytes", &json!({ "n": opts.n }))?;
         Ok(CryptoRandomResult {
             hex: req_str(&v, "hex")?,
@@ -63,6 +72,7 @@ impl HostCrypto for Host {
     }
 
     fn bcrypt(&self, opts: CryptoBcryptOpts) -> Result<CryptoBcryptResult, String> {
+        PermissionGate::require(&self.plugin_id, "crypto")?;
         let mut args = json!({
             "password": opts.password,
             "saltBase64": opts.salt_base64,
@@ -81,6 +91,7 @@ impl HostCrypto for Host {
     }
 
     fn mod_pow(&self, opts: CryptoModPowOpts) -> Result<CryptoModPowResult, String> {
+        PermissionGate::require(&self.plugin_id, "crypto")?;
         let mut args = json!({
             "base": opts.base,
             "exp": opts.exp,
@@ -99,6 +110,7 @@ impl HostCrypto for Host {
     }
 
     fn base64_encode(&self, input: CryptoBytesInput) -> Result<CryptoBase64EncodeResult, String> {
+        PermissionGate::require(&self.plugin_id, "crypto")?;
         let v = crypto::dispatch("base64Encode", &bytes_to_json(&input))?;
         Ok(CryptoBase64EncodeResult {
             base64: req_str(&v, "base64")?,
@@ -109,6 +121,7 @@ impl HostCrypto for Host {
         &self,
         opts: CryptoBase64DecodeOpts,
     ) -> Result<CryptoBase64DecodeResult, String> {
+        PermissionGate::require(&self.plugin_id, "crypto")?;
         let v = crypto::dispatch("base64Decode", &json!({ "base64": opts.base64 }))?;
         Ok(CryptoBase64DecodeResult {
             hex: req_str(&v, "hex")?,

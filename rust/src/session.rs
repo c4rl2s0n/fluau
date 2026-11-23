@@ -4,15 +4,15 @@
 //! interactions arrive as JSON events via `on_event`. Host intents (`db` /
 //! `http` / `app.provideResult`) are drained on the Rust host layer.
 
-use crate::host::{self, IntentOutcome};
+use crate::host::{self, api_registry, IntentOutcome, PermissionGate};
 use crate::json_util::{
     json_to_lua, value_to_intents_json, value_to_widget_json,
 };
 use crate::lua_engine;
-use crate::registry;
+use crate::registry::{self, HostApiPermission, PluginGrants, PluginPermissions};
 use lazy_static::lazy_static;
 use mlua::{Function, Lua, Value};
-use serde_json::Value as JsonValue;
+use serde_json::{json, Value as JsonValue};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -28,32 +28,70 @@ pub(crate) struct PluginResponse {
     pub provide_results: Vec<String>,
 }
 
+fn default_demo_permissions() -> PluginPermissions {
+    PluginPermissions {
+        host: vec![
+            HostApiPermission {
+                id: "http".into(),
+                required: true,
+                constraints_json: json!({ "domains": ["fake.proton"] }).to_string(),
+            },
+            HostApiPermission {
+                id: "db".into(),
+                required: true,
+                constraints_json: "{}".into(),
+            },
+        ],
+        libraries: vec![],
+    }
+}
+
 /// Create (or replace) a plugin session and load its script.
 pub(crate) fn start_plugin(plugin_id: &str, script: &str) -> Result<(), String> {
-    start_plugin_with_modules(plugin_id, script, HashMap::new(), None)
+    let perms = default_demo_permissions();
+    let grants = PluginGrants::all_requested(&perms);
+    start_plugin_with_modules(plugin_id, script, HashMap::new(), Some(perms), Some(grants))
 }
 
 fn start_plugin_with_modules(
     plugin_id: &str,
     script: &str,
     modules: HashMap<String, String>,
-    permissions: Option<registry::PluginPermissions>,
+    permissions: Option<PluginPermissions>,
+    grants: Option<PluginGrants>,
 ) -> Result<(), String> {
-    let perms = permissions.unwrap_or(registry::PluginPermissions {
-        host: vec!["http.request".into(), "db".into()],
-        http_allowlist: vec!["fake.proton".into()],
-        libraries: vec![],
-    });
+    let perms = permissions.unwrap_or_else(default_demo_permissions);
+    let grants = grants.unwrap_or_else(|| PluginGrants::all_requested(&perms));
+    let session_grants = registry::resolve_session_grants(&perms, &grants)?;
+
+    PermissionGate::clear(plugin_id);
+    PermissionGate::bind(plugin_id, session_grants.clone())?;
+
+    // Keep HTTP client allowlist in sync as defense in depth.
+    let http_domains = session_grants
+        .host
+        .get("http")
+        .and_then(|c| c.get("domains"))
+        .and_then(|d| d.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    crate::host::http_client::configure(plugin_id, http_domains)?;
+
+    let granted_apis: Vec<String> = session_grants.host.keys().cloned().collect();
 
     let lua = Lua::new();
     lua_engine::setup_lua_api(&lua).map_err(|e| e.to_string())?;
-    inject_require(&lua, plugin_id, modules, &perms.libraries).map_err(|e| e.to_string())?;
-    inject_host_api(&lua, plugin_id, &perms).map_err(|e| e.to_string())?;
+    inject_require(&lua, plugin_id, modules).map_err(|e| e.to_string())?;
+    let host = host::Host::new(plugin_id);
+    api_registry::inject_granted(&lua, host, &granted_apis).map_err(|e| e.to_string())?;
 
     // Luau sandbox: libs/globals read-only; local env for script writes.
-    lua.sandbox(true).map_err(|e| format!("sandbox enable failed: {e}"))?;
-
-    crate::host::http_client::configure(plugin_id, perms.http_allowlist.clone())?;
+    lua.sandbox(true)
+        .map_err(|e| format!("sandbox enable failed: {e}"))?;
 
     lua.load(script)
         .exec()
@@ -69,40 +107,18 @@ fn start_plugin_with_modules(
     Ok(())
 }
 
-fn host_allowed(perms: &registry::PluginPermissions, name: &str) -> bool {
-    perms.host.iter().any(|h| {
-        h == name
-            || (h == "http.request" && name == "http")
-            || (name == "crypto" && (h == "crypto" || h.starts_with("crypto.")))
-            || (name == "log" && (h == "log" || h == "logging"))
-    })
-}
-
 fn inject_require(
     lua: &Lua,
     plugin_id: &str,
     modules: HashMap<String, String>,
-    library_perms: &[String],
 ) -> mlua::Result<()> {
     let modules = Arc::new(modules);
     let loaded: Arc<Mutex<HashMap<String, Value>>> = Arc::new(Mutex::new(HashMap::new()));
     let pid = plugin_id.to_string();
-    let libs: Vec<String> = library_perms.to_vec();
 
     let require_fn = lua.create_function(move |lua, name: String| {
-        // Permission check (empty libs ⇒ allow package modules).
-        let allowed = if libs.is_empty() {
-            true
-        } else {
-            registry::library_allowed(&pid, &name).unwrap_or(false)
-                || libs.iter().any(|l| l == &name || l == &format!("plugin:{name}"))
-        };
-        if !allowed {
-            return Err(mlua::Error::runtime(format!(
-                "require('{name}') not allowed by plugin permissions.libraries"
-            )));
-        }
-
+        // Package-local only: modules registered with this plugin. No third-party /
+        // filesystem package.path; PermissionGate is not involved for require.
         if let Ok(cache) = loaded.lock() {
             if let Some(v) = cache.get(&name) {
                 return Ok(v.clone());
@@ -131,51 +147,35 @@ fn inject_require(
     Ok(())
 }
 
-/// Sync host helpers available to Lua (db + http + optional crypto), gated by permissions.
-fn inject_host_api(
-    lua: &Lua,
+/// Start a session from a registered plugin id with explicit grants.
+pub(crate) fn start_registered_plugin_with_grants(
     plugin_id: &str,
-    perms: &registry::PluginPermissions,
-) -> mlua::Result<()> {
-    use crate::host::crypto_api::HostCrypto;
-    use crate::host::db_api::HostDb;
-    use crate::host::http_api::HostHttp;
-    use crate::host::log_api::HostLog;
-    use crate::host::Host;
-
-    let host = Host::new(plugin_id);
-    let root = lua.create_table()?;
-
-    // Permissions still gate which modules appear; stubs describe the full surface.
-    if perms.host.iter().any(|h| h == "db") {
-        HostDb::install_into(&root, host.clone(), lua)?;
-    }
-    if host_allowed(perms, "http") || perms.host.iter().any(|h| h == "http.request") {
-        HostHttp::install_into(&root, host.clone(), lua)?;
-    }
-    if host_allowed(perms, "crypto") {
-        HostCrypto::install_into(&root, host.clone(), lua)?;
-    }
-    if host_allowed(perms, "log") {
-        HostLog::install_into(&root, host.clone(), lua)?;
-    }
-
-    lua.globals().set("host", root)?;
-    Ok(())
-}
-
-/// Start a session from a registered plugin id.
-pub(crate) fn start_registered_plugin(plugin_id: &str) -> Result<(), String> {
+    grants: PluginGrants,
+) -> Result<(), String> {
     let script = registry::get_script(plugin_id)?;
     let modules = registry::get_modules(plugin_id)?;
     let manifest = registry::get_plugin(plugin_id)?;
-    start_plugin_with_modules(plugin_id, &script, modules, Some(manifest.permissions))
+    start_plugin_with_modules(
+        plugin_id,
+        &script,
+        modules,
+        Some(manifest.permissions),
+        Some(grants),
+    )
+}
+
+/// Start a session granting every permission the manifest requests.
+pub(crate) fn start_registered_plugin(plugin_id: &str) -> Result<(), String> {
+    let manifest = registry::get_plugin(plugin_id)?;
+    let grants = PluginGrants::all_requested(&manifest.permissions);
+    start_registered_plugin_with_grants(plugin_id, grants)
 }
 
 /// Drop a plugin session.
 pub(crate) fn stop_plugin(plugin_id: &str) -> Result<(), String> {
     let mut sessions = SESSIONS.lock().map_err(|e| e.to_string())?;
     sessions.remove(plugin_id);
+    PermissionGate::clear(plugin_id);
     crate::host::http_client::clear_client(plugin_id);
     Ok(())
 }
@@ -529,16 +529,50 @@ end
 function on_event(event) return {} end
 "#,
             modules,
-            Some(registry::PluginPermissions {
-                host: vec!["db".into()],
-                http_allowlist: vec![],
-                libraries: vec!["plugin:greet".into()],
+            Some(PluginPermissions {
+                host: vec![HostApiPermission {
+                    id: "db".into(),
+                    required: true,
+                    constraints_json: "{}".into(),
+                }],
+                libraries: vec![],
             }),
+            None,
         )
         .unwrap();
         let ui = render_plugin("t5").unwrap();
         assert!(ui.contains("hi bob"), "{ui}");
         stop_plugin("t5").unwrap();
+    }
+
+    #[test]
+    fn require_unknown_module_fails() {
+        let err = start_plugin_with_modules(
+            "t5-missing",
+            r#"
+local x = require("no_such_module")
+function render()
+  return ui.Text { text = "ok" }
+end
+function on_event(event) return {} end
+"#,
+            HashMap::new(),
+            Some(PluginPermissions {
+                host: vec![HostApiPermission {
+                    id: "db".into(),
+                    required: true,
+                    constraints_json: "{}".into(),
+                }],
+                libraries: vec![],
+            }),
+            None,
+        );
+        assert!(err.is_err(), "expected missing module to fail load");
+        let msg = err.unwrap_err();
+        assert!(
+            msg.contains("no_such_module") || msg.contains("not found"),
+            "{msg}"
+        );
     }
 
     #[test]
@@ -557,16 +591,98 @@ end
 function on_event(event) return {} end
 "#,
             HashMap::new(),
-            Some(registry::PluginPermissions {
-                host: vec!["log".into()],
-                http_allowlist: vec![],
+            Some(PluginPermissions {
+                host: vec![HostApiPermission {
+                    id: "log".into(),
+                    required: true,
+                    constraints_json: "{}".into(),
+                }],
                 libraries: vec![],
             }),
+            None,
         )
         .unwrap();
         let ui = render_plugin("t-log").unwrap();
         assert!(ui.contains("ok:log"), "{ui}");
         stop_plugin("t-log").unwrap();
+    }
+
+    #[test]
+    fn denied_db_intent_fails() {
+        start_plugin_with_modules(
+            "t-deny-db",
+            r#"
+function render()
+  return ui.Text { text = "ok" }
+end
+function on_event(event) return {} end
+"#,
+            HashMap::new(),
+            Some(PluginPermissions {
+                host: vec![HostApiPermission {
+                    id: "log".into(),
+                    required: true,
+                    constraints_json: "{}".into(),
+                }],
+                libraries: vec![],
+            }),
+            Some(PluginGrants {
+                host_apis: vec!["log".into()],
+                libraries: vec![],
+            }),
+        )
+        .unwrap();
+        let err = crate::host::execute_intent(
+            "t-deny-db",
+            &serde_json::json!({
+                "type": "db.set",
+                "requestId": "x",
+                "key": "k",
+                "value": "v"
+            }),
+        );
+        assert!(err.is_err(), "expected db intent to be denied");
+        stop_plugin("t-deny-db").unwrap();
+    }
+
+    #[test]
+    fn partial_grant_omits_ungranted_module() {
+        start_plugin_with_modules(
+            "t-partial",
+            r#"
+function render()
+  local has_log = host.log ~= nil
+  local has_db = host.db ~= nil
+  return ui.Text { text = string.format("log=%s db=%s", tostring(has_log), tostring(has_db)) }
+end
+function on_event(event) return {} end
+"#,
+            HashMap::new(),
+            Some(PluginPermissions {
+                host: vec![
+                    HostApiPermission {
+                        id: "db".into(),
+                        required: true,
+                        constraints_json: "{}".into(),
+                    },
+                    HostApiPermission {
+                        id: "log".into(),
+                        required: false,
+                        constraints_json: "{}".into(),
+                    },
+                ],
+                libraries: vec![],
+            }),
+            Some(PluginGrants {
+                host_apis: vec!["db".into()],
+                libraries: vec![],
+            }),
+        )
+        .unwrap();
+        let ui = render_plugin("t-partial").unwrap();
+        assert!(ui.contains("log=false"), "{ui}");
+        assert!(ui.contains("db=true"), "{ui}");
+        stop_plugin("t-partial").unwrap();
     }
 
     #[test]
@@ -626,16 +742,15 @@ function on_event(event) return {} end
             "t6-srp",
             script,
             modules,
-            Some(registry::PluginPermissions {
-                host: vec!["crypto".into()],
-                http_allowlist: vec![],
-                libraries: vec![
-                    "plugin:bytes".into(),
-                    "plugin:bigint".into(),
-                    "plugin:pmhash".into(),
-                    "plugin:proton_srp".into(),
-                ],
+            Some(PluginPermissions {
+                host: vec![HostApiPermission {
+                    id: "crypto".into(),
+                    required: true,
+                    constraints_json: "{}".into(),
+                }],
+                libraries: vec![],
             }),
+            None,
         )
         .unwrap();
         let ui = render_plugin("t6-srp").unwrap();

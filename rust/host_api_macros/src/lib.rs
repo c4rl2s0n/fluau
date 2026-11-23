@@ -63,6 +63,11 @@ pub fn host_module(attr: TokenStream, item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attr as HostModuleArgs);
     let mut trait_item = parse_macro_input!(item as ItemTrait);
     let path = args.path;
+    let permission = args.permission.unwrap_or_else(|| path.clone());
+    let summary = args.summary.unwrap_or_default();
+    let trait_name = trait_item.ident.clone();
+    let perm_const = format_ident!("{}_PERMISSION_ID", trait_name.to_string().to_uppercase());
+    let summary_const = format_ident!("{}_SUMMARY", trait_name.to_string().to_uppercase());
 
     let mut install_bindings = Vec::new();
 
@@ -108,7 +113,14 @@ pub fn host_module(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
     trait_item.items.push(install_fn);
 
-    TokenStream::from(quote! { #trait_item })
+    TokenStream::from(quote! {
+        #trait_item
+
+        /// Permission id for this host module (manifest / grant key).
+        pub const #perm_const: &str = #permission;
+        /// Short summary for grant UI.
+        pub const #summary_const: &str = #summary;
+    })
 }
 
 /// Annotate an inherent impl to expose methods as mlua UserData.
@@ -143,17 +155,27 @@ pub fn host_userdata(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 struct HostModuleArgs {
     path: String,
+    permission: Option<String>,
+    summary: Option<String>,
 }
 
 impl syn::parse::Parse for HostModuleArgs {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut path = None;
+        let mut permission = None;
+        let mut summary = None;
         while !input.is_empty() {
             let ident: Ident = input.parse()?;
             input.parse::<syn::Token![=]>()?;
             if ident == "path" {
                 let lit: LitStr = input.parse()?;
                 path = Some(lit.value());
+            } else if ident == "permission" {
+                let lit: LitStr = input.parse()?;
+                permission = Some(lit.value());
+            } else if ident == "summary" {
+                let lit: LitStr = input.parse()?;
+                summary = Some(lit.value());
             } else {
                 return Err(syn::Error::new(ident.span(), "unknown host_module arg"));
             }
@@ -163,6 +185,8 @@ impl syn::parse::Parse for HostModuleArgs {
         }
         Ok(HostModuleArgs {
             path: path.ok_or_else(|| input.error("host_module requires path = \"...\""))?,
+            permission,
+            summary,
         })
     }
 }

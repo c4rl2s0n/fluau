@@ -18,10 +18,12 @@ Runtime plugins in **Luau** (sandboxed via mlua), executed through **Rust** and 
 |-------|--------|
 | Sandboxed Luau VM per plugin session | Yes |
 | Fixed UI catalog (codegen-driven) | Yes |
-| Plugin packages (manifest + entry + modules) | Yes |
-| Restricted `require` for vendored modules | Yes |
-| Declared permissions (enforced; grant UI later) | Yes |
-| Allowlisted HTTP + stub host for offline demos | Yes |
+| Plugin packages (`plugin.yaml` + entry + modules) | Yes |
+| Package-local `require` (no third-party package mgr) | Yes |
+| Declared permissions (`plugin.yaml`, required/optional) | Yes |
+| Grant UI + `PluginGrantStore` (memory / JSON file) | Yes |
+| Central `PermissionGate` on every privileged use | Yes |
+| Allowlisted HTTP domains under `http` permission | Yes |
 | Generic host crypto; provider protocols in plugins | Yes |
 | Fake VPN demo + ProtonVPN list-only plugin | Yes |
 

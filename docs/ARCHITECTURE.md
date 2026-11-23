@@ -58,9 +58,15 @@ Stopping and disposing are intentionally asymmetric in the demo host: tearing do
 
 ## Trust model
 
-Each VM runs with Luau sandboxing enabled. Packages declare what they need: host service categories, which HTTP hosts they may contact, and which vendored modules they may `require`. Enforcement lives in Rust. There is not yet a product-facing permission grant UI; the demo trusts the manifests you ship.
+Each VM runs with Luau sandboxing enabled. Packages declare host APIs (required or optional) and HTTP domain constraints in `plugin.yaml`. Vendored Luau modules are listed under `modules:` (or `lib/`) as package content — not as permissions.
 
-Network access is allowlisted per package. Storage offered to plugins is a simple per-plugin key-value surface (in memory for this PoC). Crypto helpers are generic primitives; provider-specific protocols (for example Proton SRP) live in plugin Luau, not as special host APIs.
+**Request vs grant:** the manifest is the request. The Flutter host persists user grants via a swappable `PluginGrantStore` and passes an effective grant snapshot into session start. Required APIs must be granted to start; optional APIs may be denied (those host modules are omitted from `host`).
+
+**Enforcement:** a central Rust `PermissionGate` is the security boundary for privileged host work. Sync `host.*` calls, HTTP UserData, and intents all go through it. Injecting only granted host modules is ergonomics for authors; every use re-checks the gate (HTTP also re-checks domain constraints). Plugin authors should still feature-detect optional APIs (`if host.log then … end`).
+
+**`require`:** a custom loader resolves only modules registered with the package. Luau’s sandbox removes filesystem/`package` require; there is no LuaRocks or third-party package fetch. Host-mediated shared libraries (if ever added) would need an explicit permission model and are postponed.
+
+Host APIs register through a builtin registry (`api_registry`) so adding a module does not mean editing an if-ladder in `session.rs`. Network domains live under the `http` permission entry. Storage is a simple per-plugin key-value surface (in memory for this PoC). Crypto helpers are generic; provider-specific protocols (for example Proton SRP) live in plugin Luau.
 
 ## Product shape and limits
 

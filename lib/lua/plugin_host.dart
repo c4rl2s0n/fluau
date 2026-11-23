@@ -15,10 +15,14 @@ class PluginHostController extends ChangeNotifier {
   PluginHostController({
     required this.pluginId,
     this.onProvideResult,
+    this.grants,
   });
 
   final String pluginId;
   final void Function(String value)? onProvideResult;
+
+  /// When set, starts with these grants; otherwise grants all requested APIs.
+  final PluginGrants? grants;
   final FieldBuffer fieldBuffer = FieldBuffer();
 
   String? widgetJson;
@@ -40,7 +44,12 @@ class PluginHostController extends ChangeNotifier {
       try {
         stopPlugin(pluginId: pluginId);
       } catch (_) {}
-      startRegisteredPlugin(pluginId: pluginId);
+      final g = grants;
+      if (g != null) {
+        startRegisteredPluginWithGrants(pluginId: pluginId, grants: g);
+      } else {
+        startRegisteredPlugin(pluginId: pluginId);
+      }
       _started = true;
       final boot = await pluginOnEvent(
         pluginId: pluginId,

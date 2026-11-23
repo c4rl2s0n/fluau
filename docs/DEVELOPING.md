@@ -27,7 +27,11 @@ After adding a widget, run [`./tool/generate.sh`](../tool/generate.sh) so serial
 
 Host services are the privilege boundary. Add one when plugins need an operation that must not be implementable in pure Luau (or should not be duplicated in every package): networking policy, durable or shared storage, system crypto, logging sinks, and similar.
 
-Implement new surface as annotated host traits / UserData under `rust/src/host/` (`#[host_module]`, `HostType`, `HostUserData`). Luau `host.d.luau` regenerates automatically on the next `cargo build` or `flutter run` (via `rust/build.rs`); `./tool/generate.sh` also refreshes it. Wire behavior behind the existing permission model so packages still declare what they need. Keep allowlists and sandbox assumptions intact. Document the *capability category* and threat model in architecture docs if the trust surface changes; leave call signatures in code.
+Implement new surface as annotated host traits / UserData under `rust/src/host/` (`#[host_module(path, permission, summary)]`, `HostType`, `HostUserData`). Register the module in [`rust/src/host/api_registry.rs`](../rust/src/host/api_registry.rs) so session inject picks it up from grants — do not add branches in `session.rs`. Call `PermissionGate::require` / `require_with` on every privileged path (sync methods, UserData, intents). Module-specific constraints (e.g. HTTP domains) belong in the gate’s constraint check for that API id.
+
+Luau `host.d.luau` regenerates automatically on the next `cargo build` or `flutter run` (via `rust/build.rs`); `./tool/generate.sh` also refreshes it. Document the permission id and threat model in architecture docs if the trust surface changes; leave call signatures in code.
+
+Grant persistence on the Flutter side uses `PluginGrantStore` (`MemoryPluginGrantStore` / `JsonFilePluginGrantStore`). Inject a different implementation when embedding; do not hard-code storage inside the session host.
 
 ## Adding capabilities
 
@@ -37,7 +41,7 @@ Use a capability when multiple UI flows share the same underlying contract, or w
 
 ## Shipping a plugin into the demo host
 
-Packages live as Flutter assets. The demo shell registers them at startup and offers them in its UI. Adding one is mostly packaging and wiring: asset entries, registration list, and a manifest that declares permissions and capabilities honestly.
+Packages live as Flutter assets with a `plugin.yaml`. The demo shell registers them at startup, prompts for grants, and offers them in its UI. Adding one is mostly packaging and wiring: asset entries, registration list, and a manifest that declares host permissions, capabilities, and optional `modules`. Do not list package-local modules under permissions; third-party Luau package loading is not supported.
 
 Prefer copying the structure of an existing package over inventing a new layout. Offline stubs are valuable for host development; keep at least one that does not need real credentials.
 

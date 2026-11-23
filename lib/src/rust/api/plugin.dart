@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Register (or replace) a plugin manifest + Lua source + optional modules.
 void registerPlugin({
@@ -33,8 +33,18 @@ bool pluginHasCapability({
   capability: capability,
 );
 
+/// Start with grants covering every requested permission (tests / trusted demos).
 void startRegisteredPlugin({required String pluginId}) => RustLib.instance.api
     .crateApiPluginStartRegisteredPlugin(pluginId: pluginId);
+
+/// Start with an explicit grant snapshot (from Dart [`PluginGrantStore`]).
+void startRegisteredPluginWithGrants({
+  required String pluginId,
+  required PluginGrants grants,
+}) => RustLib.instance.api.crateApiPluginStartRegisteredPluginWithGrants(
+  pluginId: pluginId,
+  grants: grants,
+);
 
 void startPlugin({required String pluginId, required String script}) => RustLib
     .instance
@@ -68,6 +78,84 @@ Future<String> callPlugin({
   method: method,
   argsJson: argsJson,
 );
+
+List<HostApiInfo> listHostApiInfo() =>
+    RustLib.instance.api.crateApiPluginListHostApiInfo();
+
+/// Summaries of builtin host APIs for grant UI.
+class HostApiInfo {
+  final String id;
+  final String path;
+  final String summary;
+
+  const HostApiInfo({
+    required this.id,
+    required this.path,
+    required this.summary,
+  });
+
+  @override
+  int get hashCode => id.hashCode ^ path.hashCode ^ summary.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HostApiInfo &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          path == other.path &&
+          summary == other.summary;
+}
+
+/// One requested host API (normalized).
+class HostApiPermission {
+  final String id;
+  final bool required_;
+
+  /// Constraint object as JSON text (`{}` or `{"domains":[...]}`).
+  final String constraintsJson;
+
+  const HostApiPermission({
+    required this.id,
+    required this.required_,
+    required this.constraintsJson,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ required_.hashCode ^ constraintsJson.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HostApiPermission &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          required_ == other.required_ &&
+          constraintsJson == other.constraintsJson;
+}
+
+/// Effective grants for starting a session.
+class PluginGrants {
+  final List<String> hostApis;
+  final List<String> libraries;
+
+  const PluginGrants({required this.hostApis, required this.libraries});
+
+  static Future<PluginGrants> default_() =>
+      RustLib.instance.api.crateApiPluginPluginGrantsDefault();
+
+  @override
+  int get hashCode => hostApis.hashCode ^ libraries.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PluginGrants &&
+          runtimeType == other.runtimeType &&
+          hostApis == other.hostApis &&
+          libraries == other.libraries;
+}
 
 /// Metadata describing a packaged plugin.
 class PluginManifest {
@@ -134,22 +222,16 @@ class PluginModule {
 
 /// Declared permissions a plugin requests.
 class PluginPermissions {
-  final List<String> host;
-  final List<String> httpAllowlist;
+  final List<HostApiPermission> host;
   final List<String> libraries;
 
-  const PluginPermissions({
-    required this.host,
-    required this.httpAllowlist,
-    required this.libraries,
-  });
+  const PluginPermissions({required this.host, required this.libraries});
 
   static Future<PluginPermissions> default_() =>
       RustLib.instance.api.crateApiPluginPluginPermissionsDefault();
 
   @override
-  int get hashCode =>
-      host.hashCode ^ httpAllowlist.hashCode ^ libraries.hashCode;
+  int get hashCode => host.hashCode ^ libraries.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -157,7 +239,6 @@ class PluginPermissions {
       other is PluginPermissions &&
           runtimeType == other.runtimeType &&
           host == other.host &&
-          httpAllowlist == other.httpAllowlist &&
           libraries == other.libraries;
 }
 

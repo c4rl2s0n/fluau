@@ -1,24 +1,52 @@
 //! FRB API for plugin registry, sessions, host-backed events, and capabilities.
 
 use crate::registry::{
-    self, PluginManifest as RegistryManifest, PluginModule as RegistryModule,
+    self, HostApiPermission as RegistryHostApiPermission, PluginGrants as RegistryGrants,
+    PluginManifest as RegistryManifest, PluginModule as RegistryModule,
     PluginPermissions as RegistryPermissions,
 };
 use crate::session::{self, PluginResponse as SessionPluginResponse};
 
+/// One requested host API (normalized).
+#[derive(Clone, Debug)]
+pub struct HostApiPermission {
+    pub id: String,
+    pub required: bool,
+    /// Constraint object as JSON text (`{}` or `{"domains":[...]}`).
+    pub constraints_json: String,
+}
+
+impl From<RegistryHostApiPermission> for HostApiPermission {
+    fn from(value: RegistryHostApiPermission) -> Self {
+        Self {
+            id: value.id,
+            required: value.required,
+            constraints_json: value.constraints_json,
+        }
+    }
+}
+
+impl From<HostApiPermission> for RegistryHostApiPermission {
+    fn from(value: HostApiPermission) -> Self {
+        Self {
+            id: value.id,
+            required: value.required,
+            constraints_json: value.constraints_json,
+        }
+    }
+}
+
 /// Declared permissions a plugin requests.
 #[derive(Clone, Debug, Default)]
 pub struct PluginPermissions {
-    pub host: Vec<String>,
-    pub http_allowlist: Vec<String>,
+    pub host: Vec<HostApiPermission>,
     pub libraries: Vec<String>,
 }
 
 impl From<RegistryPermissions> for PluginPermissions {
     fn from(value: RegistryPermissions) -> Self {
         Self {
-            host: value.host,
-            http_allowlist: value.http_allowlist,
+            host: value.host.into_iter().map(Into::into).collect(),
             libraries: value.libraries,
         }
     }
@@ -27,8 +55,32 @@ impl From<RegistryPermissions> for PluginPermissions {
 impl From<PluginPermissions> for RegistryPermissions {
     fn from(value: PluginPermissions) -> Self {
         Self {
-            host: value.host,
-            http_allowlist: value.http_allowlist,
+            host: value.host.into_iter().map(Into::into).collect(),
+            libraries: value.libraries,
+        }
+    }
+}
+
+/// Effective grants for starting a session.
+#[derive(Clone, Debug, Default)]
+pub struct PluginGrants {
+    pub host_apis: Vec<String>,
+    pub libraries: Vec<String>,
+}
+
+impl From<RegistryGrants> for PluginGrants {
+    fn from(value: RegistryGrants) -> Self {
+        Self {
+            host_apis: value.host_apis,
+            libraries: value.libraries,
+        }
+    }
+}
+
+impl From<PluginGrants> for RegistryGrants {
+    fn from(value: PluginGrants) -> Self {
+        Self {
+            host_apis: value.host_apis,
             libraries: value.libraries,
         }
     }
@@ -138,9 +190,19 @@ pub fn plugin_has_capability(plugin_id: String, capability: String) -> Result<bo
     registry::plugin_has_capability(&plugin_id, &capability)
 }
 
+/// Start with grants covering every requested permission (tests / trusted demos).
 #[flutter_rust_bridge::frb(sync)]
 pub fn start_registered_plugin(plugin_id: String) -> Result<(), String> {
     session::start_registered_plugin(&plugin_id)
+}
+
+/// Start with an explicit grant snapshot (from Dart [`PluginGrantStore`]).
+#[flutter_rust_bridge::frb(sync)]
+pub fn start_registered_plugin_with_grants(
+    plugin_id: String,
+    grants: PluginGrants,
+) -> Result<(), String> {
+    session::start_registered_plugin_with_grants(&plugin_id, grants.into())
 }
 
 #[flutter_rust_bridge::frb(sync)]
@@ -174,4 +236,24 @@ pub fn call_plugin(
     args_json: String,
 ) -> Result<String, String> {
     session::call_plugin(&plugin_id, &method, &args_json)
+}
+
+/// Summaries of builtin host APIs for grant UI.
+#[derive(Clone, Debug)]
+pub struct HostApiInfo {
+    pub id: String,
+    pub path: String,
+    pub summary: String,
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn list_host_api_info() -> Vec<HostApiInfo> {
+    crate::host::api_registry::builtin_host_apis()
+        .iter()
+        .map(|e| HostApiInfo {
+            id: e.id.to_string(),
+            path: e.path.to_string(),
+            summary: e.summary.to_string(),
+        })
+        .collect()
 }

@@ -23,7 +23,28 @@ A practical mental model:
 
 ## Host services and permissions
 
-Anything privileged goes through the host: HTTP, key-value storage, crypto primitives, logging. The package manifest declares which categories the plugin may use and, for HTTP, which hosts it may contact. The runtime enforces those declarations; undeclared access fails.
+Anything privileged goes through the host: HTTP, key-value storage, crypto primitives, logging. Prefer `plugin.yaml`. Declare host APIs as a **list**:
+
+```yaml
+permissions:
+  host:
+    - http:
+        domains:
+          - api.example.com
+    - db
+    - log:
+        optional: true
+modules:
+  - name: my_mod
+    path: lib/my_mod.lua
+```
+
+- Bare id (`db`) ⇒ required, no extra constraints.
+- Map entry ⇒ constraints plus optional meta `optional: true` (default required).
+- The user grants a subset; required APIs must be allowed to run. Optional APIs may be off — guard with `if host.log then … end`.
+- The framework re-checks every privileged host use (including intents); missing a grant fails closed.
+
+**Package modules** (under `modules:` or scanned from `lib/`) are part of the plugin, not permissions. `require("my_mod")` works only for modules registered with that package. There is no filesystem/`package.path` require and no third-party package manager in the sandbox; shared or URL-fetched Luau libraries are postponed.
 
 Two styles of host interaction coexist:
 
@@ -33,8 +54,6 @@ Two styles of host interaction coexist:
 Prefer the style that keeps your control flow readable; the examples use both.
 
 Crypto on the host is deliberately generic. Domain protocols (password hashing schemes, SRP proofs, provider APIs) belong in plugin modules so the host stays provider-agnostic. The Proton VPN package is the worked example of that split.
-
-Module loading is sandboxed: only modules registered with the package are available, and the manifest can further restrict which ones may be required.
 
 ## Capabilities
 

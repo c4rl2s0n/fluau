@@ -8,9 +8,14 @@ use serde_json::{json, Map, Value as JsonValue};
 
 use super::facade::Host;
 use super::http_client::{self, HttpClient as HttpClientState};
+use super::permissions::{PermissionGate, PermissionUse};
 use super::types::{HttpRequestOpts, HttpResponse};
 
-#[host_module(path = "http")]
+#[host_module(
+    path = "http",
+    permission = "http",
+    summary = "Outbound HTTP to allowlisted domains"
+)]
 pub trait HostHttp {
     /// Shared per-plugin HTTP session (cookie jar).
     #[lua(name = "client")]
@@ -61,19 +66,35 @@ impl HttpClient {
 impl HttpClient {
     #[lua(name = "request")]
     pub fn request(&self, opts: HttpRequestOpts) -> HttpResponse {
+        if let Err(e) = PermissionGate::require_with(
+            &self.plugin_id,
+            "http",
+            &PermissionUse::Http {
+                url: opts.url.clone(),
+            },
+        ) {
+            return HttpResponse {
+                ok: false,
+                status: 403,
+                body: Some(json!({ "error": e })),
+                headers: None,
+            };
+        }
         let opts_json = opts_to_json(&opts);
         let response = if let Some(local) = &self.local {
             let mut guard = local.lock().expect("http client lock");
-            guard.request(&opts_json)
+            guard.request_unchecked(&opts_json)
         } else {
-            http_client::with_client(&self.plugin_id, |client| client.request(&opts_json))
-                .unwrap_or_else(|e| {
-                    json!({
-                        "ok": false,
-                        "status": 500,
-                        "body": { "error": e }
-                    })
+            http_client::with_client(&self.plugin_id, |client| {
+                client.request_unchecked(&opts_json)
+            })
+            .unwrap_or_else(|e| {
+                json!({
+                    "ok": false,
+                    "status": 500,
+                    "body": { "error": e }
                 })
+            })
         };
         json_to_http_response(response)
     }

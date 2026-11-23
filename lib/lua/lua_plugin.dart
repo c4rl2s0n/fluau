@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:luatest/src/rust/api/plugin.dart';
 
 import 'event_scope.dart';
 import 'plugin_host.dart';
@@ -66,10 +67,14 @@ class LuaPlugin extends StatefulWidget {
   final String pluginId;
   final void Function(String result)? onProvideResult;
 
+  /// Effective grants from [PluginGrantStore] / grant UI. Null ⇒ grant all requested.
+  final PluginGrants? grants;
+
   const LuaPlugin({
     super.key,
     required this.pluginId,
     this.onProvideResult,
+    this.grants,
   });
 
   @override
@@ -85,6 +90,7 @@ class _LuaPluginState extends State<LuaPlugin> {
     _controller = PluginHostController(
       pluginId: widget.pluginId,
       onProvideResult: widget.onProvideResult,
+      grants: widget.grants,
     );
     _controller.startRegistered();
   }

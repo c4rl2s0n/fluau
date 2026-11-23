@@ -2,12 +2,7 @@
 
 use std::sync::Arc;
 
-use mlua::{Lua, Result as LuaResult, Table};
-
-use super::crypto_api::HostCrypto;
-use super::db_api::HostDb;
-use super::http_api::HostHttp;
-use super::log_api::HostLog;
+use mlua::{Lua, Result as LuaResult};
 
 /// Cheap-to-clone host handle passed into Lua bindings.
 #[derive(Clone, Debug)]
@@ -22,14 +17,12 @@ impl Host {
         }
     }
 
-    /// Install all host modules onto a fresh `host` global.
+    /// Install all builtin host modules onto a fresh `host` global (ungated; tests only).
     pub fn inject_into(self, lua: &Lua) -> LuaResult<()> {
-        let root: Table = lua.create_table()?;
-        HostDb::install_into(&root, self.clone(), lua)?;
-        HostHttp::install_into(&root, self.clone(), lua)?;
-        HostCrypto::install_into(&root, self.clone(), lua)?;
-        HostLog::install_into(&root, self.clone(), lua)?;
-        lua.globals().set("host", root)?;
-        Ok(())
+        let all: Vec<String> = super::api_registry::known_api_ids()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        super::api_registry::inject_granted(lua, self, &all)
     }
 }

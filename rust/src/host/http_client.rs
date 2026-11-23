@@ -23,6 +23,27 @@ impl HttpClient {
     }
 
     pub fn request(&mut self, opts: &Value) -> Value {
+        let url = opts.get("url").and_then(|v| v.as_str()).unwrap_or("");
+        // Defense in depth: local allowlist (kept in sync with session grants).
+        // Primary enforcement is PermissionGate at call sites.
+        if !self.allowlist.is_empty() && !http::host_allowed(url, &self.allowlist) {
+            return json!({
+                "ok": false,
+                "status": 403,
+                "body": {
+                    "error": format!(
+                        "host not allowed by plugin http domains: {}",
+                        http::host_of(url).unwrap_or_else(|| url.to_string())
+                    )
+                }
+            });
+        }
+        self.request_unchecked(opts)
+    }
+
+    /// Perform the HTTP request without consulting the local allowlist.
+    /// Callers must have already passed [`crate::host::permissions::PermissionGate`].
+    pub fn request_unchecked(&mut self, opts: &Value) -> Value {
         let method = opts
             .get("method")
             .and_then(|v| v.as_str())
@@ -31,19 +52,6 @@ impl HttpClient {
         let url = opts.get("url").and_then(|v| v.as_str()).unwrap_or("");
         let body = opts.get("body");
         let headers = opts.get("headers");
-
-        if !self.allowlist.is_empty() && !http::host_allowed(url, &self.allowlist) {
-            return json!({
-                "ok": false,
-                "status": 403,
-                "body": {
-                    "error": format!(
-                        "host not allowed by plugin httpAllowlist: {}",
-                        http::host_of(url).unwrap_or_else(|| url.to_string())
-                    )
-                }
-            });
-        }
 
         let cookie_header = self.cookie_header();
         let mut response = http::request(

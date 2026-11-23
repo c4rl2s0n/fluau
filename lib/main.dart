@@ -1,16 +1,28 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:luatest/lua/grant_sheet.dart';
+import 'package:luatest/lua/grant_store.dart';
 import 'package:luatest/lua/lua_plugin.dart';
 import 'package:luatest/lua/plugin_registry.dart';
 import 'package:luatest/lua/vpn_provider.dart';
 import 'package:luatest/src/rust/api/plugin.dart';
 import 'package:luatest/src/rust/frb_generated.dart';
 
-void main() async {
+late PluginGrantStore grantStore;
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await RustLib.init();
-  await PluginRegistryLoader.registerFromAssets(const [
-    'assets/plugins/fake_vpn/plugin.json',
-    'assets/plugins/proton_vpn/plugin.json',
+
+  // Persist grants under a local file (path injected — swap store for other backends).
+  final grantsPath =
+      '${Directory.systemTemp.path}${Platform.pathSeparator}luatest_plugin_grants.json';
+  grantStore = JsonFilePluginGrantStore(grantsPath);
+
+  await PluginRegistryLoader.registerPackages(const [
+    'assets/plugins/fake_vpn',
+    'assets/plugins/proton_vpn',
   ]);
   runApp(const MyApp());
 }
@@ -45,6 +57,8 @@ class _PluginDemoPageState extends State<PluginDemoPage> {
   String? _contractResult;
   List<PluginManifest> _plugins = const [];
   int _session = 0;
+  PluginGrants? _activeGrants;
+  bool _resolvingGrants = true;
 
   @override
   void initState() {
@@ -53,6 +67,7 @@ class _PluginDemoPageState extends State<PluginDemoPage> {
     if (_plugins.isNotEmpty && !_plugins.any((p) => p.id == _pluginId)) {
       _pluginId = _plugins.first.id;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureGrants());
   }
 
   PluginManifest? get _current {
@@ -60,6 +75,47 @@ class _PluginDemoPageState extends State<PluginDemoPage> {
       if (p.id == _pluginId) return p;
     }
     return _plugins.isEmpty ? null : _plugins.first;
+  }
+
+  Future<void> _ensureGrants({bool forcePrompt = false}) async {
+    final manifest = _current;
+    if (manifest == null) {
+      setState(() {
+        _resolvingGrants = false;
+        _activeGrants = null;
+      });
+      return;
+    }
+    setState(() => _resolvingGrants = true);
+
+    final previous = await grantStore.read(manifest.id);
+    if (!forcePrompt && previous != null && previous.covers(manifest)) {
+      setState(() {
+        _activeGrants = previous.toFrb();
+        _resolvingGrants = false;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    final decided = await showPluginGrantSheet(
+      context: context,
+      manifest: manifest,
+      previous: previous,
+    );
+    if (decided == null) {
+      setState(() {
+        _activeGrants = null;
+        _resolvingGrants = false;
+      });
+      return;
+    }
+    await grantStore.write(decided);
+    setState(() {
+      _activeGrants = decided.toFrb();
+      _resolvingGrants = false;
+      _session++;
+    });
   }
 
   Future<void> _useConfigViaContract() async {
@@ -87,6 +143,15 @@ class _PluginDemoPageState extends State<PluginDemoPage> {
     }
   }
 
+  String _permsSummary(PluginPermissions? perms) {
+    if (perms == null) return '';
+    final parts = perms.host.map((h) {
+      final tag = h.required_ ? 'req' : 'opt';
+      return '${h.id}($tag)';
+    });
+    return parts.join(', ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final current = _current;
@@ -101,6 +166,11 @@ class _PluginDemoPageState extends State<PluginDemoPage> {
             TextButton(
               onPressed: _useConfigViaContract,
               child: const Text('Use config'),
+            ),
+            IconButton(
+              tooltip: 'Review permissions',
+              onPressed: () => _ensureGrants(forcePrompt: true),
+              icon: const Icon(Icons.security),
             ),
             IconButton(
               tooltip: 'Restart plugin UI session',
@@ -137,22 +207,30 @@ class _PluginDemoPageState extends State<PluginDemoPage> {
                             ),
                           )
                           .toList(),
-                      onChanged: (id) {
+                      onChanged: (id) async {
                         if (id == null) return;
                         setState(() {
                           _pluginId = id;
                           _session++;
                           _providedResult = null;
                           _contractResult = null;
+                          _activeGrants = null;
                         });
+                        await _ensureGrants();
                       },
                     ),
                     const SizedBox(height: 4),
                     Text(
                       current == null
                           ? 'Registry: (empty)'
-                          : 'caps=[$caps] host=${perms?.host.join(",")} '
-                                'http=${perms?.httpAllowlist.join(",")}',
+                          : 'caps=[$caps] host=${_permsSummary(perms)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _activeGrants == null
+                          ? 'Grants: (none — allow the plugin to run)'
+                          : 'Grants: ${_activeGrants!.hostApis.join(", ")}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 4),
@@ -174,16 +252,30 @@ class _PluginDemoPageState extends State<PluginDemoPage> {
               ),
             ),
             Expanded(
-              child: LuaPlugin(
-                key: ValueKey('plugin-$_pluginId-$_session'),
-                pluginId: _pluginId,
-                onProvideResult: (result) {
-                  setState(() => _providedResult = result);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Plugin provided result')),
-                  );
-                },
-              ),
+              child: _resolvingGrants
+                  ? const Center(child: CircularProgressIndicator())
+                  : _activeGrants == null
+                      ? Center(
+                          child: FilledButton(
+                            onPressed: () => _ensureGrants(forcePrompt: true),
+                            child: const Text('Review permissions'),
+                          ),
+                        )
+                      : LuaPlugin(
+                          key: ValueKey(
+                            'plugin-$_pluginId-$_session-${_activeGrants!.hostApis.join(",")}',
+                          ),
+                          pluginId: _pluginId,
+                          grants: _activeGrants,
+                          onProvideResult: (result) {
+                            setState(() => _providedResult = result);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Plugin provided result'),
+                              ),
+                            );
+                          },
+                        ),
             ),
           ],
         ),
