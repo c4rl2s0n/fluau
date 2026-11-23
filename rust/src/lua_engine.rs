@@ -59,6 +59,37 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
         Ok(Value::String(lua.create_string(&json_str)?))
     })?)?;
 
+    // TextField widget constructor
+    ui.set("TextField", lua.create_function(|lua, args: Table| -> Result<Value> {
+        let mut map = JsonMap::new();
+        map.insert("type".to_string(), json!("TextField"));
+
+        // Handle id (String)
+        let id: String = args.get("id")?;
+        map.insert("id".to_string(), json!(id));
+
+        // Handle label (String)
+        let label: Option<String> = args.get("label").ok();
+        if let Some(v) = label {
+            map.insert("label".to_string(), json!(v));
+        }
+
+        // Handle value (String)
+        let value: Option<String> = args.get("value").ok();
+        if let Some(v) = value {
+            map.insert("value".to_string(), json!(v));
+        }
+
+        // Handle obscure (bool)
+        let obscure: Option<bool> = args.get("obscure").ok();
+        if let Some(v) = obscure {
+            map.insert("obscure".to_string(), json!(v));
+        }
+
+        let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;
+        Ok(Value::String(lua.create_string(&json_str)?))
+    })?)?;
+
     // Button widget constructor
     ui.set("Button", lua.create_function(|lua, args: Table| -> Result<Value> {
         let mut map = JsonMap::new();
@@ -70,10 +101,13 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
             map.insert("text".to_string(), json!(v));
         }
 
-        // Handle onPressed (callback)
-        let onPressed: Option<String> = args.get("onPressed").ok();
-        if let Some(v) = onPressed {
-            map.insert("onPressed".to_string(), json!(v));
+        // Handle onPressed (event payload)
+        if let Ok(event_value) = args.get::<Option<Value>>("onPressed") {
+            if let Some(v) = event_value {
+                let event_json = crate::json_util::lua_to_json(v)
+                    .map_err(|e| mlua::Error::runtime(e.to_string()))?;
+                map.insert("onPressed".to_string(), event_json);
+            }
         }
 
         // Handle child (child widget)
@@ -82,6 +116,51 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
                 if let Ok(parsed) = serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {
                     map.insert("child".to_string(), parsed);
                 }
+            }
+        }
+
+        let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;
+        Ok(Value::String(lua.create_string(&json_str)?))
+    })?)?;
+
+    // Expander widget constructor
+    ui.set("Expander", lua.create_function(|lua, args: Table| -> Result<Value> {
+        let mut map = JsonMap::new();
+        map.insert("type".to_string(), json!("Expander"));
+
+        // Handle title (String)
+        let title: String = args.get("title")?;
+        map.insert("title".to_string(), json!(title));
+
+        // Handle expanded (bool)
+        let expanded: Option<bool> = args.get("expanded").ok();
+        if let Some(v) = expanded {
+            map.insert("expanded".to_string(), json!(v));
+        }
+
+        // Handle onToggle (event payload)
+        if let Ok(event_value) = args.get::<Option<Value>>("onToggle") {
+            if let Some(v) = event_value {
+                let event_json = crate::json_util::lua_to_json(v)
+                    .map_err(|e| mlua::Error::runtime(e.to_string()))?;
+                map.insert("onToggle".to_string(), event_json);
+            }
+        }
+
+        // Handle children (child list)
+        if let Ok(children_table) = args.get::<Option<Table>>("children") {
+            if let Some(table) = children_table {
+                let mut children_json = Vec::new();
+                for pair in table.pairs::<Value, Value>() {
+                    if let Ok((_, child_value)) = pair {
+                        if let Value::String(child_str) = child_value {
+                            if let Ok(parsed) = serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {
+                                children_json.push(parsed);
+                            }
+                        }
+                    }
+                }
+                map.insert("children".to_string(), json!(children_json));
             }
         }
 
@@ -123,6 +202,65 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
                      return Err(mlua::Error::runtime("Text: invalid v value"));
                  }
             map.insert("weight".to_string(), json!(v));
+        }
+
+        let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;
+        Ok(Value::String(lua.create_string(&json_str)?))
+    })?)?;
+
+    // Switch widget constructor
+    ui.set("Switch", lua.create_function(|lua, args: Table| -> Result<Value> {
+        let mut map = JsonMap::new();
+        map.insert("type".to_string(), json!("Switch"));
+
+        // Handle id (String)
+        let id: String = args.get("id")?;
+        map.insert("id".to_string(), json!(id));
+
+        // Handle label (String)
+        let label: Option<String> = args.get("label").ok();
+        if let Some(v) = label {
+            map.insert("label".to_string(), json!(v));
+        }
+
+        // Handle value (bool)
+        let value: Option<bool> = args.get("value").ok();
+        if let Some(v) = value {
+            map.insert("value".to_string(), json!(v));
+        }
+
+        let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;
+        Ok(Value::String(lua.create_string(&json_str)?))
+    })?)?;
+
+    // Select widget constructor
+    ui.set("Select", lua.create_function(|lua, args: Table| -> Result<Value> {
+        let mut map = JsonMap::new();
+        map.insert("type".to_string(), json!("Select"));
+
+        // Handle id (String)
+        let id: String = args.get("id")?;
+        map.insert("id".to_string(), json!(id));
+
+        // Handle label (String)
+        let label: Option<String> = args.get("label").ok();
+        if let Some(v) = label {
+            map.insert("label".to_string(), json!(v));
+        }
+
+        // Handle value (String)
+        let value: Option<String> = args.get("value").ok();
+        if let Some(v) = value {
+            map.insert("value".to_string(), json!(v));
+        }
+
+        // Handle options (string list)
+        if let Ok(list_value) = args.get::<Option<Value>>("options") {
+            if let Some(v) = list_value {
+                let list_json = crate::json_util::lua_to_json(v)
+                    .map_err(|e| mlua::Error::runtime(e.to_string()))?;
+                map.insert("options".to_string(), list_json);
+            }
         }
 
         let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;

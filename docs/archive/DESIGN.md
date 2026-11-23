@@ -1,3 +1,5 @@
+> **Historical / superseded.** This document describes an earlier UserData-over-FFI design. The runtime uses JSON UI snapshots and the current docs under [`docs/`](../). Prefer [Architecture](../ARCHITECTURE.md).
+
 # Lua Flutter Plugin Framework - Design Document
 
 ## Overview

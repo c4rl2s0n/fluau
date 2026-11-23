@@ -1,0 +1,50 @@
+# Plugin author guide
+
+This guide explains how to think about writing a Luau plugin for this host. Exact entrypoint names, manifest fields, and host call shapes live in the package manifests, example plugins, and Luau definition stubs — use those as the reference while editing.
+
+## What a plugin is
+
+A plugin is a **package**: a small manifest, an entry script, and optionally a `lib/` of modules the entry script can load. The host registers packages from Flutter assets, then starts a sandboxed session for a chosen package id.
+
+Shipping a new package into the demo app means placing it under the plugins assets tree, ensuring Flutter can see those assets, and registering that package at startup. Look at the fake VPN and Proton VPN packages for complete layouts — one is an offline stub, the other talks to real APIs with vendored crypto in Luau.
+
+## The UI and event contract
+
+Plugins do not own a persistent Flutter widget tree. They **render a snapshot** of approved UI nodes whenever the host asks. Interaction is **event-driven**: controls embed data payloads; when the user acts, the host delivers that payload into the session and asks for a new snapshot.
+
+Form-like controls are a special case. Their values live in a host-side buffer while the user edits. The buffer is pushed into the plugin only when an action runs, so `render` stays cheap and the plugin sees a coherent field set together with the event that used it.
+
+A practical mental model:
+
+- Keep plugin state in Lua locals / tables as needed.
+- Use render to project that state into the fixed UI catalog.
+- Use events to mutate state, kick off host work, or publish results back to the app.
+- Prefer small event payloads (`type` plus a few fields) over trying to round-trip the whole UI.
+
+## Host services and permissions
+
+Anything privileged goes through the host: HTTP, key-value storage, crypto primitives, logging. The package manifest declares which categories the plugin may use and, for HTTP, which hosts it may contact. The runtime enforces those declarations; undeclared access fails.
+
+Two styles of host interaction coexist:
+
+- **Direct calls** from Lua into the host surface, useful inside event handlers for straightforward request/response work.
+- **Intents** returned from handlers, which the runtime drains in rounds (including follow-up hooks when async-style results come back). Useful when the plugin wants the host to own sequencing.
+
+Prefer the style that keeps your control flow readable; the examples use both.
+
+Crypto on the host is deliberately generic. Domain protocols (password hashing schemes, SRP proofs, provider APIs) belong in plugin modules so the host stays provider-agnostic. The Proton VPN package is the worked example of that split.
+
+Module loading is sandboxed: only modules registered with the package are available, and the manifest can further restrict which ones may be required.
+
+## Capabilities
+
+UI is not the only way the app talks to a plugin. A package can advertise **capabilities** — named contracts the app may call without going through the widget tree. The host invokes a dispatch-style entry with a method name and arguments; the plugin returns structured results.
+
+The demo uses a VPN-provider capability so the Flutter shell can ask for status, selected config, or logout through a typed facade. If you add a capability, document the method set for app authors and keep the UI and headless paths consistent about shared state (for example login session kept in plugin storage).
+
+## Authoring tips
+
+- Start from the fake VPN package if you want a minimal login → list → provide-result flow without real network crypto.
+- Use the Proton VPN package when you need multi-module structure, allowlisted HTTPS, and non-trivial Luau.
+- For editor assistance, the repo can generate Luau definition stubs for the UI catalog; see the README for the codegen and LSP setup.
+- Stay inside the published UI vocabulary. If you need a new control, that is a framework change (see [Developing](DEVELOPING.md)), not something a single plugin can invent.

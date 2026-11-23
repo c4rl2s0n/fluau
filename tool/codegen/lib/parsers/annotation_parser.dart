@@ -246,6 +246,7 @@ class AnnotationParser {
     // Check if it's a LuaWidget class (child widget)
     bool isChildWidget = false;
     bool isChildList = false;
+    bool isStringList = false;
 
     // Check if the field type is LuaWidgetInterface or List<LuaWidgetInterface>
     // For resolved types, element should be non-null
@@ -266,6 +267,8 @@ class AnnotationParser {
           // Check if the list element type is LuaWidgetInterface
           if (argElement != null && argElement.name == 'LuaWidgetInterface') {
             isChildList = true;
+          } else if (argElement != null && argElement.name == 'String') {
+            isStringList = true;
           } else if (argElement is ClassElement) {
             // Check if it's a LuaWidget class
             for (final annotation in argElement.metadata.annotations) {
@@ -303,6 +306,8 @@ class AnnotationParser {
       rustType = isNullable ? 'Option<String>' : 'String';
     } else if (isChildList) {
       rustType = 'Vec<Box<dyn LuaWidget>>';
+    } else if (isStringList) {
+      rustType = isNullable ? 'Option<Vec<String>>' : 'Vec<String>';
     } else if (isChildWidget) {
       rustType = isNullable
           ? 'Option<Box<dyn LuaWidget>>'
@@ -327,6 +332,7 @@ class AnnotationParser {
       defaultValue: defaultValue,
       isChildWidget: isChildWidget,
       isChildList: isChildList,
+      isStringList: isStringList,
       isCallback: isCallback,
       isDataClass: isDataClass,
       isEnum: isEnum,

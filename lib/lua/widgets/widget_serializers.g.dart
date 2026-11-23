@@ -17,6 +17,20 @@ extension _LuaColumnWidgetSerializer on LuaColumnWidget {
   }
 }
 
+/// Serializer for LuaTextFieldWidget
+/// Converts JSON maps to LuaTextFieldWidget instances
+extension _LuaTextFieldWidgetSerializer on LuaTextFieldWidget {
+  /// Deserialize from JSON map
+  static LuaTextFieldWidget fromJson(Map<String, dynamic> json) {
+    return LuaTextFieldWidget(
+      id: json['id'] as String,
+      label: json['label'] != null ? json['label'] as String : null,
+      value: json['value'] != null ? json['value'] as String : null,
+      obscure: json['obscure'] != null ? json['obscure'] as bool : null,
+    );
+  }
+}
+
 /// Serializer for LuaButtonWidget
 /// Converts JSON maps to LuaButtonWidget instances
 extension _LuaButtonWidgetSerializer on LuaButtonWidget {
@@ -24,8 +38,22 @@ extension _LuaButtonWidgetSerializer on LuaButtonWidget {
   static LuaButtonWidget fromJson(Map<String, dynamic> json) {
     return LuaButtonWidget(
       text: json['text'] != null ? json['text'] as String : null,
-      onPressed: json['onPressed'] as String?,
+      onPressed: json['onPressed'] != null ? Map<String, dynamic>.from(json['onPressed'] as Map) : null,
       child: json['child'] != null ? _deserializeWidget(json['child'] as Map<String, dynamic>) : null,
+    );
+  }
+}
+
+/// Serializer for LuaExpanderWidget
+/// Converts JSON maps to LuaExpanderWidget instances
+extension _LuaExpanderWidgetSerializer on LuaExpanderWidget {
+  /// Deserialize from JSON map
+  static LuaExpanderWidget fromJson(Map<String, dynamic> json) {
+    return LuaExpanderWidget(
+      title: json['title'] as String,
+      expanded: json['expanded'] != null ? json['expanded'] as bool : null,
+      onToggle: json['onToggle'] != null ? Map<String, dynamic>.from(json['onToggle'] as Map) : null,
+      children: _deserializeWidgetList(json['children'] as List?),
     );
   }
 }
@@ -40,6 +68,33 @@ extension _LuaTextWidgetSerializer on LuaTextWidget {
       size: json['size'] != null ? _parseTextSize(json['size'] as String?) : null,
       color: json['color'] != null ? _parseTextColor(json['color'] as String?) : null,
       weight: json['weight'] != null ? _parseFontWeightPreset(json['weight'] as String?) : null,
+    );
+  }
+}
+
+/// Serializer for LuaSwitchWidget
+/// Converts JSON maps to LuaSwitchWidget instances
+extension _LuaSwitchWidgetSerializer on LuaSwitchWidget {
+  /// Deserialize from JSON map
+  static LuaSwitchWidget fromJson(Map<String, dynamic> json) {
+    return LuaSwitchWidget(
+      id: json['id'] as String,
+      label: json['label'] != null ? json['label'] as String : null,
+      value: json['value'] != null ? json['value'] as bool : null,
+    );
+  }
+}
+
+/// Serializer for LuaSelectWidget
+/// Converts JSON maps to LuaSelectWidget instances
+extension _LuaSelectWidgetSerializer on LuaSelectWidget {
+  /// Deserialize from JSON map
+  static LuaSelectWidget fromJson(Map<String, dynamic> json) {
+    return LuaSelectWidget(
+      id: json['id'] as String,
+      label: json['label'] != null ? json['label'] as String : null,
+      value: json['value'] != null ? json['value'] as String : null,
+      options: json['options'] != null ? (json['options'] as List).map((e) => e.toString()).toList() : null,
     );
   }
 }
@@ -105,8 +160,12 @@ FontWeightPreset? _parseFontWeightPreset(String? value) {
 class LuaWidgetRegistry {
   static final Map<String, LuaWidgetInterface Function(Map<String, dynamic>)> _builders = {
     'Column': (json) => _LuaColumnWidgetSerializer.fromJson(json),
+    'TextField': (json) => _LuaTextFieldWidgetSerializer.fromJson(json),
     'Button': (json) => _LuaButtonWidgetSerializer.fromJson(json),
+    'Expander': (json) => _LuaExpanderWidgetSerializer.fromJson(json),
     'Text': (json) => _LuaTextWidgetSerializer.fromJson(json),
+    'Switch': (json) => _LuaSwitchWidgetSerializer.fromJson(json),
+    'Select': (json) => _LuaSelectWidgetSerializer.fromJson(json),
   };
 
   /// Deserialize a widget from JSON (without building it)

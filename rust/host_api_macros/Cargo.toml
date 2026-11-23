@@ -1,0 +1,13 @@
+[package]
+name = "host_api_macros"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+host_api_meta = { path = "../host_api_meta" }
+syn = { version = "2", features = ["full", "parsing", "extra-traits"] }
+quote = "1"
+proc-macro2 = "1"

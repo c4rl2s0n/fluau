@@ -82,6 +82,9 @@ class PropertyInfo {
   
   /// Whether this property is a list of child widgets
   final bool isChildList;
+
+  /// Whether this property is a `List<String>` (e.g. Select options)
+  final bool isStringList;
   
   /// Whether this property is a callback
   final bool isCallback;
@@ -112,6 +115,7 @@ class PropertyInfo {
     this.defaultValue,
     this.isChildWidget = false,
     this.isChildList = false,
+    this.isStringList = false,
     this.isCallback = false,
     this.isDataClass = false,
     this.isEnum = false,

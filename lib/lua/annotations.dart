@@ -128,32 +128,23 @@ class LuaChildren {
   const LuaChildren({this.name});
 }
 
-/// Marks a property as a callback handler.
+/// Marks a property as an event payload forwarded to the plugin host.
 ///
-/// The property type should be String (will store a callback ID).
-/// The code generator will handle callback registration on the Rust side.
+/// The property type should be `Map<String, dynamic>?`.
+/// Lua supplies a table (e.g. `{ type = "login" }`) which is embedded in the
+/// UI JSON snapshot. Flutter dispatches that map via [PluginEventScope].
 ///
 /// Example:
 /// ```dart
-/// @LuaWidget(name: 'Button')
-/// class LuaButtonWidget implements LuaWidget {
-///   @LuaCallback()
-///   final String? onPressed;  // Stores callback ID
-///   
-///   @override
-///   Widget build(BuildContext context) => ElevatedButton(
-///     onPressed: onPressed != null ? () => _executeCallback(onPressed!) : null,
-///     child: const Text('Click'),
-///   );
-/// }
+/// @LuaCallback()
+/// final Map<String, dynamic>? onPressed;
 /// ```
 ///
 /// Lua usage:
 /// ```lua
 /// ui.Button {
-///   onPressed = function()
-///     print("Button clicked!")
-///   end
+///   text = "Login",
+///   onPressed = { type = "login" }
 /// }
 /// ```
 class LuaCallback {

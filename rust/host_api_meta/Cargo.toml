@@ -1,0 +1,12 @@
+[package]
+name = "host_api_meta"
+version = "0.1.0"
+edition = "2021"
+description = "Parse annotated host API Rust sources and emit Luau definition stubs"
+
+[dependencies]
+syn = { version = "2", features = ["full", "parsing", "extra-traits"] }
+quote = "1"
+proc-macro2 = "1"
+walkdir = "2"
+thiserror = "2"

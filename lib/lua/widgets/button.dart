@@ -1,66 +1,55 @@
 import 'package:flutter/material.dart';
 import '../annotations.dart';
-import 'widget.dart';
+import '../event_scope.dart';
 import 'text.dart';
+import 'widget.dart';
 
-/// Button widget definition for Lua
-///
-/// This is a dataclass (not a StatelessWidget) that defines the structure
-/// of a Button widget that can be created from Lua.
+/// Button widget definition for Lua.
 ///
 /// Lua usage:
-///   ui.Button {
-///     text = "Click me!",
-///     onPressed = function() print("Clicked!") end
-///   }
+/// ```lua
+/// ui.Button {
+///   text = "Login",
+///   onPressed = { type = "login" }
+/// }
+/// ```
 @LuaWidget(name: 'Button')
 class LuaButtonWidget implements LuaWidgetInterface {
-  /// The text to display on the button
   @LuaProperty()
   final String? text;
-  
-  /// Callback to execute when the button is pressed
-  /// This will be a callback ID registered via ui.registerCallback()
+
+  /// Event payload forwarded to the plugin host on press.
   @LuaCallback()
-  final String? onPressed;
-  
-  /// Child widget (alternative to text)
+  final Map<String, dynamic>? onPressed;
+
   @LuaProperty()
   final LuaWidgetInterface? child;
-  
+
   const LuaButtonWidget({
     this.text,
     this.onPressed,
     this.child,
   });
-  
-  /// Build the Flutter ElevatedButton widget from this definition
+
   @override
   Widget build(BuildContext context) {
-    // Determine the child widget
-    Widget buttonChild;
+    final Widget buttonChild;
     if (child != null) {
       buttonChild = child!.build(context);
     } else if (text != null) {
-      // Create a text widget for the button
-      buttonChild = LuaTextWidget(
-        text: text!,
-        // Use default styling for button text
-      ).build(context);
+      buttonChild = LuaTextWidget(text: text!).build(context);
     } else {
       buttonChild = const SizedBox();
     }
-    
+
     return ElevatedButton(
-      onPressed: onPressed != null ? () => _executeCallback(onPressed!) : null,
+      onPressed: onPressed != null
+          ? () => PluginEventScope.dispatch(
+                context,
+                Map<String, dynamic>.from(onPressed!),
+              )
+          : null,
       child: buttonChild,
     );
-  }
-  
-  /// Execute a Lua callback by ID
-  Future<void> _executeCallback(String callbackId) async {
-    // TODO: Implement callback execution through Rust FFI
-    // For now, just log the callback ID
-    debugPrint('Executing Lua callback: $callbackId');
   }
 }

@@ -98,17 +98,15 @@ class RustGenerator {
     final isRequired = prop.required;
     
     if (prop.isCallback) {
-      // Callbacks are stored as strings (callback IDs)
-      buffer.writeln('        // Handle $propName (callback)');
-      if (isRequired) {
-        buffer.writeln('        let $propName: String = args.get("$propName")?;');
-        buffer.writeln('        map.insert("$propName".to_string(), json!($propName));');
-      } else {
-        buffer.writeln('        let $propName: Option<String> = args.get("$propName").ok();');
-        buffer.writeln('        if let Some(v) = $propName {');
-        buffer.writeln('            map.insert("$propName".to_string(), json!(v));');
-        buffer.writeln('        }');
-      }
+      // Event payloads: Lua table or string → JSON in the widget snapshot
+      buffer.writeln('        // Handle $propName (event payload)');
+      buffer.writeln('        if let Ok(event_value) = args.get::<Option<Value>>("$propName") {');
+      buffer.writeln('            if let Some(v) = event_value {');
+      buffer.writeln('                let event_json = crate::json_util::lua_to_json(v)');
+      buffer.writeln('                    .map_err(|e| mlua::Error::runtime(e.to_string()))?;');
+      buffer.writeln('                map.insert("$propName".to_string(), event_json);');
+      buffer.writeln('            }');
+      buffer.writeln('        }');
     } else if (prop.isChildList) {
       // Handle child list - each child is a JSON string
       buffer.writeln('        // Handle $propName (child list)');
@@ -125,6 +123,15 @@ class RustGenerator {
       buffer.writeln('                    }');
       buffer.writeln('                }');
       buffer.writeln('                map.insert("${propName}".to_string(), json!(children_json));');
+      buffer.writeln('            }');
+      buffer.writeln('        }');
+    } else if (prop.isStringList) {
+      buffer.writeln('        // Handle $propName (string list)');
+      buffer.writeln('        if let Ok(list_value) = args.get::<Option<Value>>("$propName") {');
+      buffer.writeln('            if let Some(v) = list_value {');
+      buffer.writeln('                let list_json = crate::json_util::lua_to_json(v)');
+      buffer.writeln('                    .map_err(|e| mlua::Error::runtime(e.to_string()))?;');
+      buffer.writeln('                map.insert("$propName".to_string(), list_json);');
       buffer.writeln('            }');
       buffer.writeln('        }');
     } else if (prop.isChildWidget) {

@@ -77,13 +77,19 @@ class DartSerializerGenerator {
     final jsonKey = prop.name;
     
     if (prop.isCallback) {
-      // Callback ID is a string
-      return 'json[\'${jsonKey}\'] as String?';
+      // Event payload object (or null)
+      return 'json[\'${jsonKey}\'] != null ? Map<String, dynamic>.from(json[\'${jsonKey}\'] as Map) : null';
     }
     
     if (prop.isChildList) {
       // List of widgets - use the type information to deserialize
       return '_deserializeWidgetList(json[\'${jsonKey}\'] as List?)';
+    }
+
+    if (prop.isStringList) {
+      return 'json[\'${jsonKey}\'] != null '
+          '? (json[\'${jsonKey}\'] as List).map((e) => e.toString()).toList() '
+          ': null';
     }
     
     if (prop.isChildWidget) {

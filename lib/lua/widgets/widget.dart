@@ -3,6 +3,10 @@ import '../types.dart';
 import 'text.dart';
 import 'button.dart';
 import 'column.dart';
+import 'text_field.dart';
+import 'expander.dart';
+import 'switch_widget.dart';
+import 'select.dart';
 
 // The code-generated serializers will be in a part file
 part 'widget_serializers.g.dart';
