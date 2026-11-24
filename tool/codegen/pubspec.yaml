@@ -1,5 +1,5 @@
 name: lua_plugin_codegen
-description: Code generator for Lua Flutter Plugin framework. Generates Rust and Dart code from LuaWidget annotations.
+description: Code generator for Lua Flutter Plugin framework (CLI + build_runner).
 version: 0.1.0
 
 environment:
@@ -13,3 +13,7 @@ dependencies:
   dart_style: ^3.1.12
   path: ^1.8.0
   yaml: ^3.1.0
+
+dev_dependencies:
+  build_runner: ^2.4.14
+  build_test: ^3.0.0

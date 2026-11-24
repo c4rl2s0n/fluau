@@ -3,9 +3,6 @@
 #
 # Usage (from repo root):
 #   ./tool/check_generated.sh
-#
-# Regenerates via ./tool/generate.sh, then requires a clean git diff on the
-# generated paths. Does not require plugin.d.luau (hand-maintained).
 
 set -euo pipefail
 
@@ -18,11 +15,13 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 
 GENERATED_PATHS=(
-  assets/plugins/_types/ui.d.luau
-  assets/plugins/_types/host.d.luau
-  lib/lua/widgets/widget_serializers.g.dart
-  rust/src/lua_engine.rs
-  rust/src/api/lua.rs
+  example/assets/plugins/_types/ui.d.luau
+  example/assets/plugins/_types/host.d.luau
+  example/assets/plugins/_types/capabilities.d.luau
+  packages/lua_plugin/lib/src/widgets/widget_serializers.g.dart
+  example/rust/src/lua_engine.rs
+  example/rust/src/api/lua.rs
+  example/lib/vpn_provider.g.dart
 )
 
 echo "==> Regenerating…"
@@ -35,7 +34,6 @@ for path in "${GENERATED_PATHS[@]}"; do
     echo "stale: $path"
     dirty=1
   fi
-  # Also catch untracked expected files
   if [[ ! -f "$path" ]]; then
     echo "missing: $path"
     dirty=1

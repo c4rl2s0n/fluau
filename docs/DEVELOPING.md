@@ -1,6 +1,6 @@
 # Developing the framework
 
-This note is for people extending the host itself — the UI catalog, privileged services, or app-facing capabilities. Follow the [documentation guidelines](DOCUMENTATION_GUIDELINES.md) when you update prose after a change. For the mechanical codegen pipeline, see [CODEGEN_OVERVIEW.md](../CODEGEN_OVERVIEW.md).
+This note is for people extending the host itself — the UI catalog, privileged services, or app-facing capabilities. Follow the [documentation guidelines](DOCUMENTATION_GUIDELINES.md) when you update prose after a change. For packaging (tools-only core + app-owned FRB), see [PACKAGING.md](PACKAGING.md). For the mechanical codegen pipeline, see [../example/CODEGEN_OVERVIEW.md](../example/CODEGEN_OVERVIEW.md).
 
 ## Choose an extension path
 
@@ -10,7 +10,7 @@ Ask what kind of power you are adding:
 |------|------|
 | A new visual control plugins may place in a snapshot | Grow the **UI catalog** |
 | A new privileged operation every (or some) plugins may call | Extend **host services** and their permission gates |
-| A stable, headless contract the Flutter app calls by name | Add a **capability** (and optionally a typed Dart facade) |
+| A stable, headless contract the Flutter app calls by name | Add a **capability** (`@LuaCapability` + DTOs; see [CAPABILITIES.md](CAPABILITIES.md)) |
 | A concrete integration users can select in the demo | Ship a **plugin package** |
 
 Keep provider-specific logic in plugins when possible. Prefer generic host primitives (hash, HTTP, storage) over baking one vendor’s protocol into Rust.
@@ -21,15 +21,15 @@ The catalog is the closed vocabulary of nodes a plugin may emit. Dart annotated 
 
 Use this path when plugins need a new interaction shape (another input, layout, or feedback control) that still fits the snapshot-and-event model: values as data, presses as event maps, no live Lua callbacks across the bridge.
 
-After adding a widget, run [`./tool/generate.sh`](../tool/generate.sh) so serializers, `lua_engine.rs`, and `ui.d.luau` stay in sync. Only run `flutter_rust_bridge_codegen generate` if you also changed FRB-exposed APIs. Then exercise the control from a small plugin before relying on it in a real package. See [CODEGEN_OVERVIEW.md](../CODEGEN_OVERVIEW.md).
+After adding a widget, run the Lua widget codegen (see example `CODEGEN_OVERVIEW.md`) so serializers, `lua_engine.rs`, and `ui.d.luau` stay in sync. Point stub outputs at paths from `lua_plugin.yaml`. Only run `flutter_rust_bridge_codegen generate` if you also changed FRB-exposed APIs.
 
 ## Extending host services
 
 Host services are the privilege boundary. Add one when plugins need an operation that must not be implementable in pure Luau (or should not be duplicated in every package): networking policy, durable or shared storage, system crypto, logging sinks, and similar.
 
-Implement new surface as annotated host traits / UserData under `rust/src/host/` (`#[host_module(path, permission, summary)]`, `HostType`, `HostUserData`). Register the module in [`rust/src/host/api_registry.rs`](../rust/src/host/api_registry.rs) so session inject picks it up from grants — do not add branches in `session.rs`. Call `PermissionGate::require` / `require_with` on every privileged path (sync methods, UserData, intents). Module-specific constraints (e.g. HTTP domains) belong in the gate’s constraint check for that API id.
+Implement new surface as annotated host traits / UserData in the **app** crate (example: `example/rust/src/demo_host/`) with `#[host_module(path, permission, summary)]`. Register via `lua_plugin_core::setup(SetupOptions { host_apis: … })` — core ships an empty registry. Call `PermissionGate::require` / `require_with` on every privileged path; register constraint checkers (e.g. HTTP domains) on the gate at setup. Do not put concrete HostAPIs in `lua_plugin_core`.
 
-Luau `host.d.luau` regenerates automatically on the next `cargo build` or `flutter run` (via `rust/build.rs`); `./tool/generate.sh` also refreshes it. Document the permission id and threat model in architecture docs if the trust surface changes; leave call signatures in code.
+Luau `host.d.luau` regenerates on the next `cargo build` / `flutter run` (via the app `build.rs`). Document the permission id and threat model if the trust surface changes; leave call signatures in code.
 
 Grant persistence on the Flutter side uses `PluginGrantStore` (`MemoryPluginGrantStore` / `JsonFilePluginGrantStore`). Inject a different implementation when embedding; do not hard-code storage inside the session host.
 

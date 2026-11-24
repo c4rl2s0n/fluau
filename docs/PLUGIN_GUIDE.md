@@ -59,7 +59,7 @@ Crypto on the host is deliberately generic. Domain protocols (password hashing s
 
 UI is not the only way the app talks to a plugin. A package can advertise **capabilities** — named contracts the app may call without going through the widget tree. The host invokes a dispatch-style entry with a method name and arguments; the plugin returns structured results.
 
-The demo uses a VPN-provider capability so the Flutter shell can ask for status, selected config, or logout through a typed facade. If you add a capability, document the method set for app authors and keep the UI and headless paths consistent about shared state (for example login session kept in plugin storage).
+The demo uses a VPN-provider capability so the Flutter shell can ask for status, selected config, or logout through a typed facade (`@LuaCapability` + DTOs). If you add a capability, see [CAPABILITIES.md](CAPABILITIES.md): declare the abstract Dart contract, run capability codegen, implement Lua `dispatch`, and keep UI/headless state coherent (for example login session in plugin storage).
 
 ## Luau stubs and editor support
 
@@ -69,6 +69,7 @@ Definition files live under `assets/plugins/_types/`:
 |------|--------|----------------|
 | `ui.d.luau` | `ui.*` widget constructors | Generated (`./tool/generate.sh`) |
 | `host.d.luau` | `host.db` / `host.http` / `host.crypto` / `host.log` | Generated on Cargo/Flutter build |
+| `capabilities.d.luau` | capability DTO / dispatch shapes | Generated (capability codegen) |
 | `plugin.d.luau` | lifecycle / intent shapes | Hand-maintained |
 
 Install [luau-lsp](https://github.com/JohnnyMorganz/luau-lsp). Workspace settings and `assets/plugins/.luaurc` point the language server at those files. Prefer the stubs over guessing host or widget shapes.

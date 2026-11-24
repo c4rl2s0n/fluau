@@ -33,7 +33,7 @@ flowchart TB
 
 **Rust** owns the plugin registry, one long-lived sandboxed VM per active session, the Lua-facing UI builders, and privileged host services (network, storage, crypto, logging). Permissions declared on the package gate those services.
 
-**The bridge** carries commands and results. It does not ferry live Flutter objects or Lua function references. UI crosses the boundary as a JSON snapshot; events and capability calls cross as structured data.
+**The bridge** carries commands and results. It does not ferry live Flutter objects or Lua function references. UI crosses the boundary as a JSON snapshot; events and capability calls cross as structured data. App-defined capability contracts (`@LuaCapability`) add a typed Dart decode layer on top of those JSON calls; see [CAPABILITIES.md](CAPABILITIES.md).
 
 ## Why a fixed catalog and JSON UI
 

@@ -11,6 +11,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
+import 'capability_codegen.dart' as capability_codegen;
 import 'parsers/annotation_parser.dart';
 import 'generators/rust_generator.dart';
 import 'generators/dart_serializer_generator.dart';
@@ -18,12 +19,20 @@ import 'generators/luau_stub_generator.dart';
 
 /// Main entry point for the code generator CLI
 void main(List<String> args) async {
-  if (args.isEmpty || args[0] != '--generate') {
+  if (args.isEmpty) {
     _printUsage();
     exit(1);
   }
-  
+
   try {
+    if (args[0] == '--generate-capabilities') {
+      await capability_codegen.runCapabilityCodegen(args);
+      return;
+    }
+    if (args[0] != '--generate') {
+      _printUsage();
+      exit(1);
+    }
     final cli = LuaCodegenCli.fromArgs(args);
     await cli.run();
   } catch (e, stackTrace) {
@@ -45,18 +54,12 @@ void _printUsage() {
   print('    --dart-out <dart_directory> \\');
   print('    [--luau-out <luau_directory>]');
   print('');
-  print('Arguments:');
-  print('  --input     Directory containing Dart files with LuaWidget annotations');
-  print('  --rust-out  Directory to write generated Rust files');
-  print('  --dart-out  Directory to write generated Dart files');
-  print('  --luau-out  Directory to write Luau definition stubs (default: assets/plugins/_types)');
+  print('  dart run lua_plugin_codegen --generate-capabilities \\');
+  print('    --input <dart_directory> \\');
+  print('    [--luau-out <luau_directory>]');
   print('');
-  print('Example:');
-  print('  flutter pub run lua_plugin_codegen --generate \\');
-  print('    --input lib/lua/widgets \\');
-  print('    --rust-out rust/src \\');
-  print('    --dart-out lib/lua/widgets \\');
-  print('    --luau-out assets/plugins/_types');
+  print('Widget mode writes lua_engine.rs + widget_serializers + ui.d.luau.');
+  print('Capability mode writes *.g.dart parts + capabilities.d.luau.');
 }
 
 /// CLI for the code generator
