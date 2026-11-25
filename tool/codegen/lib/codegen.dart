@@ -1,10 +1,10 @@
-/// Lua Plugin Code Generator
+/// fluau Code Generator
 ///
 /// Main entry point for the code generation CLI.
 /// This tool parses Dart files with LuaWidget/LuaData annotations
 /// and generates Rust and Dart code for the Lua plugin framework.
 
-library lua_plugin_codegen;
+library fluau_codegen;
 
 import 'dart:async';
 import 'dart:io';
@@ -45,16 +45,16 @@ void main(List<String> args) async {
 
 /// Print usage information
 void _printUsage() {
-  print('Lua Plugin Code Generator');
+  print('fluau Code Generator');
   print('');
   print('Usage:');
-  print('  dart run lua_plugin_codegen --generate \\');
+  print('  dart run fluau_codegen --generate \\');
   print('    --input <dart_directory> \\');
   print('    --rust-out <rust_directory> \\');
   print('    --dart-out <dart_directory> \\');
   print('    [--luau-out <luau_directory>]');
   print('');
-  print('  dart run lua_plugin_codegen --generate-capabilities \\');
+  print('  dart run fluau_codegen --generate-capabilities \\');
   print('    --input <dart_directory> \\');
   print('    [--luau-out <luau_directory>]');
   print('');
@@ -130,7 +130,7 @@ class LuaCodegenCli {
   
   /// Run the code generation
   Future<void> run() async {
-    print('Lua Plugin Code Generator');
+    print('fluau Code Generator');
     print('========================');
     print('');
     print('Input directory: $inputDir');

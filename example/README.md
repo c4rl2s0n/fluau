@@ -1,22 +1,12 @@
 # Example app
 
-Single Flutter app + one Rust `cdylib` (`RustLib`). Demo HostAPIs and widgets live here; core ships none.
+Runnable Flutter host for **fluau** (demo HostAPIs + fake/Proton VPN plugins).
 
-## DX surface
+## Run
 
-**Rust** (`src/demo_host/mod.rs`):
-
-```rust
-demo_host::ensure_runtime(); // once — registers http/db/crypto/log + UI catalog
+```bash
+flutter pub get
+flutter run
 ```
 
-**Flutter** (`lib/main.dart`):
-
-```dart
-await RustLib.init();
-LuaPluginBridge.bind(FrbLuaPluginBridge());
-await PluginRegistryLoader.registerPackages([...]);
-LuaPlugin(pluginId: '...');
-```
-
-Config: [`lua_plugin.yaml`](lua_plugin.yaml). Packaging docs: [`../docs/PACKAGING.md`](../docs/PACKAGING.md).
+Config: [`fluau.yaml`](fluau.yaml). Docs: [`../docs/GETTING_STARTED.md`](../docs/GETTING_STARTED.md).

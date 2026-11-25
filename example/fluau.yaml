@@ -1,0 +1,24 @@
+# Workspace config for fluau bootstrap (paths relative to this file).
+# Analogous to flutter_rust_bridge.yaml — points at where stamped glue lives.
+# Requires an existing FRB app (flutter_rust_bridge.yaml + Native Assets or Cargokit).
+
+rust:
+  crate_root: rust/
+  # Stamped #[frb] forward module (thin façade over lua_plugin_core).
+  api_module: src/api/plugin.rs
+  # Path (from crate_root) to demo HostAPI sources for Luau stub emission.
+  host_apis: src/demo_host
+
+dart:
+  # Stamped LuaPluginBridge adapter (imports this app's generated FRB symbols).
+  bridge_adapter: lib/fluau_bridge.g.dart
+  # Package import prefix used inside the stamped adapter.
+  frb_package: luatest
+  frb_plugin_import: package:luatest/src/rust/api/plugin.dart
+
+stubs:
+  host_d_luau: assets/plugins/_types/host.d.luau
+  ui_d_luau: assets/plugins/_types/ui.d.luau
+
+# Pin must match the app's flutter_rust_bridge dependency.
+frb_version: "2.13.0"

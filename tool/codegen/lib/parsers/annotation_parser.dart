@@ -5,7 +5,7 @@
 ///
 /// Compatible with analyzer 14.x
 
-library lua_plugin_codegen.parsers.annotation_parser;
+library fluau_codegen.parsers.annotation_parser;
 
 import 'dart:async';
 import 'dart:io';

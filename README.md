@@ -1,12 +1,25 @@
-# Luau plugin framework (tools + example)
+# fluau
 
-Sandboxed Luau plugins for Flutter via a **tools-only** Rust rlib and Dart package. The app owns FRB, HostAPIs, and the UI catalog.
+Sandboxed Luau plugins for Flutter. The Dart package is **`fluau`**; the example
+app and Rust runtime live in this monorepo.
+
+**Requires** a Flutter–Rust bridge such as
+[flutter_rust_bridge](https://cjycode.com/flutter_rust_bridge/) (example pin
+**2.13.0**). Bridge-from-zero is covered by FRB’s docs, not ours.
 
 ## Packages
 
-- **`crates/lua_plugin_core`** — session, sandbox, permission gate, HostApi registry (empty until the app registers surfaces)
-- **`packages/lua_plugin`** — `LuaPluginBridge`, grants, YAML package loader, `@LuaWidget` helpers
-- **`example/`** — runnable Flutter PoC (demo http/db/crypto/log + Proton/fake VPN plugins)
+- **`packages/fluau`** — Dart tools: bridge, grants, loader, annotations (`dart run fluau:bootstrap`)
+- **`crates/lua_plugin_core`** — Rust runtime (git/path until crates.io under the fluau family)
+- **`example/`** — runnable host with demo HostAPIs and a sample UI catalog
+
+## Start here
+
+- [Getting started](docs/GETTING_STARTED.md)
+- [Architecture](docs/concepts/ARCHITECTURE.md)
+- [Host integration](docs/host/INTEGRATION.md)
+- [UI catalog](docs/host/UI_CATALOG.md)
+- [Grants](docs/host/GRANTS.md)
 
 ## Quick start (example)
 
@@ -16,11 +29,7 @@ flutter pub get
 flutter run
 ```
 
-Bootstrap stamped FRB/Dart glue (requires FRB already set up):
-
 ```bash
 cd example
-dart run ../packages/lua_plugin/bin/bootstrap.dart
+dart run ../packages/fluau/bin/bootstrap.dart
 ```
-
-See [docs/PACKAGING.md](docs/PACKAGING.md) for HostApi/UI extension and FRB version pinning, and [docs/CAPABILITIES.md](docs/CAPABILITIES.md) for typed capability contracts (`@LuaCapability`).

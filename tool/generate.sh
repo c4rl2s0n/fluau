@@ -16,16 +16,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 EXAMPLE="$ROOT/example"
-PKG="$ROOT/packages/lua_plugin"
+WIDGETS="$EXAMPLE/lib/widgets"
 
 echo "==> Widget codegen (Dart catalog → serializers, lua_engine.rs, ui.d.luau)"
 (
   cd tool/codegen
   dart pub get
-  dart run bin/lua_plugin_codegen.dart --generate \
-    --input "$PKG/lib/src/widgets" \
+  dart run bin/fluau_codegen.dart --generate \
+    --input "$WIDGETS" \
     --rust-out "$EXAMPLE/rust/src" \
-    --dart-out "$PKG/lib/src/widgets" \
+    --dart-out "$WIDGETS" \
     --luau-out "$EXAMPLE/assets/plugins/_types"
 )
 
@@ -39,7 +39,7 @@ echo "==> Capability Luau stubs (CLI → capabilities.d.luau)"
 (
   cd tool/codegen
   dart pub get
-  dart run bin/lua_plugin_codegen.dart --generate-capabilities \
+  dart run bin/fluau_codegen.dart --generate-capabilities \
     --input "$EXAMPLE/lib" \
     --luau-out "$EXAMPLE/assets/plugins/_types"
 )
@@ -55,12 +55,12 @@ echo "Generated / refreshed:"
 echo "  example/assets/plugins/_types/ui.d.luau"
 echo "  example/assets/plugins/_types/host.d.luau"
 echo "  example/assets/plugins/_types/capabilities.d.luau"
-echo "  packages/lua_plugin/lib/src/widgets/widget_serializers.g.dart"
+echo "  example/lib/widgets/widget_serializers.g.dart"
 echo "  example/rust/src/lua_engine.rs (+ api/lua.rs)"
 echo "  example/lib/*.g.dart (via build_runner)"
 echo ""
 echo "Hand-maintained (not touched): example/assets/plugins/_types/plugin.d.luau"
 echo "Capability-only Dart refresh: cd example && dart run build_runner build"
 echo "If you changed flutter_rust_bridge APIs, also run: flutter_rust_bridge_codegen generate"
-echo "Bootstrap FRB/Dart adapter: cd example && dart run ../packages/lua_plugin/bin/bootstrap.dart"
+echo "Bootstrap FRB/Dart adapter: cd example && dart run ../packages/fluau/bin/bootstrap.dart"
 echo "Done."

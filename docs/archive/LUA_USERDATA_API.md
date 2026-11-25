@@ -1,4 +1,4 @@
-> **Historical / superseded.** This document describes an earlier UserData-based widget API. The runtime builds UI via JSON constructors and codegen. Prefer [Architecture](../ARCHITECTURE.md) and [Codegen overview](../../CODEGEN_OVERVIEW.md).
+> **Historical / superseded.** This document describes an earlier UserData-based widget API. The runtime builds UI via JSON constructors and codegen. Prefer [Architecture](../concepts/ARCHITECTURE.md) and [When to regenerate](../codegen/WHEN_TO_RUN.md).
 
 # Lua Flutter Plugin - UserData API Implementation
 

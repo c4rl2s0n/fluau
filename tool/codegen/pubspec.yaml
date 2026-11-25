@@ -1,5 +1,5 @@
-name: lua_plugin_codegen
-description: Code generator for Lua Flutter Plugin framework (CLI + build_runner).
+name: fluau_codegen
+description: Code generator for fluau (CLI + build_runner).
 version: 0.1.0
 
 environment:

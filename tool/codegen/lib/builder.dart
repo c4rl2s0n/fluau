@@ -1,4 +1,4 @@
-/// build_runner entrypoints for lua_plugin_codegen.
+/// build_runner entrypoints for fluau_codegen.
 library;
 
 import 'package:build/build.dart';

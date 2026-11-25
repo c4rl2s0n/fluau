@@ -1,10 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:lua_plugin/lua_plugin.dart';
-import 'package:luatest/lua_plugin_bridge.g.dart';
+import 'package:fluau/fluau.dart';
+import 'package:luatest/fluau_bridge.g.dart';
 import 'package:luatest/src/rust/frb_generated.dart';
 import 'package:luatest/vpn_provider.dart';
+import 'package:luatest/widgets/catalog.dart';
 
 late PluginGrantStore grantStore;
 
@@ -264,6 +265,7 @@ class _PluginDemoPageState extends State<PluginDemoPage> {
                       ),
                       pluginId: _pluginId,
                       grants: _activeGrants,
+                      buildWidget: LuaWidgetRegistry.buildFromMap,
                       onProvideResult: (result) {
                         setState(() => _providedResult = result);
                         ScaffoldMessenger.of(context).showSnackBar(

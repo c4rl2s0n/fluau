@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:lua_plugin/lua_plugin.dart';
+import 'package:fluau/fluau.dart';
 
 part 'vpn_provider.g.dart';
 

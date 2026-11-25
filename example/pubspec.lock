@@ -201,6 +201,20 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
+  fluau:
+    dependency: "direct main"
+    description:
+      path: "../packages/fluau"
+      relative: true
+    source: path
+    version: "0.1.0"
+  fluau_codegen:
+    dependency: "direct dev"
+    description:
+      path: "../tool/codegen"
+      relative: true
+    source: path
+    version: "0.1.0"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -346,20 +360,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.3.0"
-  lua_plugin:
-    dependency: "direct main"
-    description:
-      path: "../packages/lua_plugin"
-      relative: true
-    source: path
-    version: "0.1.0"
-  lua_plugin_codegen:
-    dependency: "direct dev"
-    description:
-      path: "../tool/codegen"
-      relative: true
-    source: path
-    version: "0.1.0"
   matcher:
     dependency: transitive
     description:
