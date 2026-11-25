@@ -29,8 +29,23 @@ and to `frb_version` in [`fluau.yaml`](FLUAU_YAML.md) when you set one.
 2. Optionally create [`fluau.yaml`](FLUAU_YAML.md) when stamp paths differ from
    bootstrap defaults (`src/api/fluau.rs`, inferred FRB import).
 3. Implement HostAPIs and call `fluau::setup(...)` once at process start
-   (see `example/rust/src/demo_host`).
+   (see Runtime setup below; example lives in `example/rust/src/demo_host`).
 4. Stamp glue and bind (see below).
+
+## Runtime setup
+
+`fluau::setup(SetupOptions { ... })` is **Rust-only** — it is not FRB-exported
+and Dart never calls it. Call it once before starting plugin sessions. Pass
+`ui_setup: Some(lua_engine::setup_lua_api)` so each Lua session installs the
+host UI catalog.
+
+In the example, a `#[frb(init)]` hook runs `ensure_runtime()` during
+`RustLib.init()`, which calls `setup` behind a `Once`. Plugin FRB entry points
+may call the same `ensure` again; it stays idempotent.
+
+`LuaPluginBridge.bind(FrbLuaPluginBridge())` installs the stamped Dart adapter
+after init. `LuaPluginBridge.instance` is **not** a stub: unbound it throws
+`StateError`; after bind it forwards to FRB.
 
 <!-- fluau:include-begin id="bootstrap-bind" -->
 ### Bootstrap and bind
@@ -47,8 +62,8 @@ flutter_rust_bridge_codegen generate
 Then:
 
 ```dart
-await RustLib.init();
-LuaPluginBridge.bind(FrbLuaPluginBridge()); // stamped adapter
+await RustLib.init(); // runs #[frb(init)] → fluau::setup on the Rust side
+LuaPluginBridge.bind(FrbLuaPluginBridge()); // required stamped adapter
 await PluginRegistryLoader.registerPackages([...]);
 // LuaPlugin(pluginId: '...', buildWidget: YourRegistry.buildFromMap, ...)
 ```

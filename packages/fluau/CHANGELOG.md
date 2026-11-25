@@ -1,3 +1,9 @@
+## 0.1.5
+
+- Agent skills and host/plugin docs now include the Lua entrypoint contract, a
+  minimal plugin example, `fluau_codegen` flags/outputs, Rust `setup()` call-site
+  story, and correct `LuaPluginBridge.bind` semantics.
+
 ## 0.1.4
 
 - Bootstrap infers `frb_plugin_import` from `pubspec.yaml` and defaults the Rust

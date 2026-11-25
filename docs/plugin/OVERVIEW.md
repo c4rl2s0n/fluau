@@ -4,8 +4,53 @@ A plugin is a **package**: a small manifest, an entry script, and optionally a
 `lib/` of modules. The host registers packages from Flutter assets, then starts
 a sandboxed session for a chosen package id.
 
-Exact entrypoint names, manifest fields, and host call shapes live in the package
-manifests, example plugins, and Luau definition stubs — use those while editing.
+## Entrypoint contract
+
+The runtime looks up global Lua functions by name:
+
+| Symbol | Required? | Role |
+|--------|-----------|------|
+| `render()` | Yes (UI sessions) | Return a JSON **string** from `ui.*` constructors — a plain table fails with `render() must return a widget (JSON string from ui.*)` |
+| `on_event(event)` | Optional | Handle UI events; return intents or `{}` |
+| `flush_state(fields)` | Optional | Apply buffered form fields before `on_event` |
+| `init()` | Optional | Runs once when the session loads |
+| `on_host_result(result)` | Optional | Handle async host results |
+| `dispatch(method, args)` | Only for capabilities | Required when the host calls a capability |
+
+### Minimal plugin
+
+```yaml
+# plugin.yaml
+id: hello
+name: Hello
+version: 0.0.1
+main: main.lua
+```
+
+```lua
+-- main.lua
+function render()
+  return ui.Column {
+    spacing = 8,
+    children = {
+      ui.Text { text = "Hello fluau", size = "large" },
+      ui.Button { text = "Ping", onPressed = { type = "ping" } },
+    },
+  }
+end
+
+function on_event(event)
+  if event.type == "ping" then
+    return {}
+  end
+  return {}
+end
+```
+
+Manifest shape: required `id` / `name` / `version` / `main` (or legacy `script`);
+optional `capabilities`, `permissions.host`, and `modules`. Widget names must
+exist in the host UI catalog. For a fuller example see
+`example/assets/plugins/fake_vpn/`.
 
 ## UI and events
 
@@ -45,7 +90,8 @@ without the widget tree. See [capabilities/OVERVIEW.md](../capabilities/OVERVIEW
 
 ## Authoring tips
 
-- Start from `example/assets/plugins/fake_vpn/` for a minimal flow.
+- Start from the minimal plugin above, or `example/assets/plugins/fake_vpn/` for
+  capabilities + host intents.
 - Use Proton VPN when you need multi-module structure and allowlisted HTTPS.
 - Stay inside the host UI vocabulary. New controls are a host catalog change
   ([UI_CATALOG.md](../host/UI_CATALOG.md)), not something one plugin invents.

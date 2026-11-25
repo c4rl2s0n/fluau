@@ -20,7 +20,7 @@ description: >-
 
 ```yaml
 dependencies:
-  fluau: ^0.1.4
+  fluau: ^0.1.5
 ```
 
 ```toml
