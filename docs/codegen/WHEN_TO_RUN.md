@@ -16,8 +16,9 @@ defaults. From the Flutter app root:
 dart run fluau_codegen
 ```
 
-Writes `widget_serializers.g.dart`, `lua_engine.rs`, `api/lua.rs`, `ui.d.luau`,
-capability `*.g.dart` parts, and `capabilities.d.luau`.
+Writes `dart.lua_root/widget_serializers.g.dart` (default `lib/fluau/`),
+`lua_engine.rs`, `api/lua.rs`, `ui.d.luau`, capability `*.g.dart` parts, and
+`capabilities.d.luau`.
 
 ### Selective / overrides
 

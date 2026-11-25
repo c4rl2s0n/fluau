@@ -24,7 +24,7 @@ import 'package:yaml/yaml.dart';
 
 const _defaultCrateRoot = 'rust/';
 const _defaultApiModule = 'src/api/fluau.rs';
-const _defaultBridgeAdapter = 'lib/fluau_bridge.g.dart';
+const _defaultLuaRoot = 'lib/fluau/';
 const _defaultFrbVersion = '2.13.0';
 const _fluauCargoDep = 'fluau = "0.1"';
 
@@ -35,7 +35,8 @@ rust:
   crate_root: $_defaultCrateRoot
   api_module: $_defaultApiModule
 dart:
-  bridge_adapter: $_defaultBridgeAdapter
+  lua_root: $_defaultLuaRoot
+  # bridge_adapter defaults to <lua_root>/fluau_bridge.g.dart
 frb_version: "$_defaultFrbVersion"
 '''.trim();
 
@@ -54,7 +55,8 @@ void main(List<String> args) async {
         'fluau.yaml is optional. Defaults when omitted:\n'
         '  rust.crate_root:         $_defaultCrateRoot\n'
         '  rust.api_module:         $_defaultApiModule\n'
-        '  dart.bridge_adapter:     $_defaultBridgeAdapter\n'
+        '  dart.lua_root:           $_defaultLuaRoot\n'
+        '  dart.bridge_adapter:     <lua_root>/fluau_bridge.g.dart\n'
         '  dart.frb_plugin_import:  package:<pubspec.name>/src/rust/api/<stem>.dart\n'
         '  frb_version:             $_defaultFrbVersion\n'
         '\n'
@@ -98,8 +100,9 @@ void main(List<String> args) async {
   final apiModuleRel = (rust['api_module'] as String?) ?? _defaultApiModule;
   final apiModule = _join(crateRoot, apiModuleRel);
   final moduleStem = _moduleStem(apiModuleRel);
-  final bridgeRel =
-      (dart['bridge_adapter'] as String?) ?? _defaultBridgeAdapter;
+  final luaRootRel = (dart['lua_root'] as String?) ?? _defaultLuaRoot;
+  final defaultBridge = _join(luaRootRel, 'fluau_bridge.g.dart');
+  final bridgeRel = (dart['bridge_adapter'] as String?) ?? defaultBridge;
   final bridgePath = _join(root, bridgeRel);
   final frbVersion = frbVersionRaw ?? _defaultFrbVersion;
 

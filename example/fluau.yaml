@@ -11,8 +11,8 @@ rust:
   host_apis: src/demo_host
 
 dart:
-  # Stamped LuaPluginBridge adapter (imports this app's generated FRB symbols).
-  bridge_adapter: lib/fluau_bridge.g.dart
+  # Generated Dart fluau root (bridge + widget_serializers.g.dart).
+  lua_root: lib/fluau/
   # Package import prefix used inside the stamped adapter.
   frb_package: luatest
   frb_plugin_import: package:luatest/src/rust/api/plugin.dart

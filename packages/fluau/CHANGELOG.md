@@ -1,3 +1,10 @@
+## 0.1.8
+
+- Docs/skills: `dart.lua_root` standalone serializers; constructor-param Lua API
+  (multi-ctor auto names; optional from nullability/defaults).
+- Annotation docs updated for rename-only param annotations.
+- Align with `fluau_codegen` 0.1.3.
+
 ## 0.1.7
 
 - `fluau_codegen` reads paths from `fluau.yaml` (zero-arg

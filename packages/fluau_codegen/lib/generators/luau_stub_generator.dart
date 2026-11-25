@@ -33,10 +33,12 @@ class LuauStubGenerator {
   void _writeEnumAliases(StringBuffer buffer, List<LuaClassInfo> classes) {
     final enums = <String, List<String>>{};
     for (final luaClass in classes) {
-      for (final prop in luaClass.properties) {
-        if (!prop.isEnum || prop.enumValues == null) continue;
-        final typeName = prop.nonNullableDartType;
-        enums.putIfAbsent(typeName, () => List<String>.from(prop.enumValues!));
+      for (final ctor in luaClass.constructors) {
+        for (final prop in ctor.parameters) {
+          if (!prop.isEnum || prop.enumValues == null) continue;
+          final typeName = prop.nonNullableDartType;
+          enums.putIfAbsent(typeName, () => List<String>.from(prop.enumValues!));
+        }
       }
     }
 
@@ -50,36 +52,52 @@ class LuauStubGenerator {
     buffer.writeln();
   }
 
-  void _writeDataClassTypes(StringBuffer buffer, List<LuaClassInfo> dataClasses) {
+  void _writeDataClassTypes(
+    StringBuffer buffer,
+    List<LuaClassInfo> dataClasses,
+  ) {
     if (dataClasses.isEmpty) return;
 
     for (final dataClass in dataClasses) {
-      buffer.writeln('export type ${dataClass.luaName} = {');
-      for (final prop in dataClass.properties) {
-        buffer.writeln('  ${prop.name}: ${_luauType(prop)}${_optionalSuffix(prop)},');
+      for (final ctor in dataClass.constructors) {
+        final typeName = ctor.isUnnamed
+            ? dataClass.luaName
+            : '${dataClass.luaName}_${ctor.dartName}';
+        buffer.writeln('export type $typeName = {');
+        for (final prop in ctor.parameters) {
+          buffer.writeln(
+            '  ${prop.name}: ${_luauType(prop)}${_optionalSuffix(prop)},',
+          );
+        }
+        buffer.writeln('}');
+        buffer.writeln();
       }
-      buffer.writeln('}');
-      buffer.writeln();
     }
   }
 
   void _writeWidgetPropTypes(StringBuffer buffer, List<LuaClassInfo> widgets) {
     for (final widget in widgets) {
-      buffer.writeln('export type ${widget.luaName}Props = {');
-      for (final prop in widget.properties) {
-        buffer.writeln('  ${prop.name}: ${_luauType(prop)}${_optionalSuffix(prop)},');
+      for (final ctor in widget.constructors) {
+        buffer.writeln('export type ${ctor.luaName}Props = {');
+        for (final prop in ctor.parameters) {
+          buffer.writeln(
+            '  ${prop.name}: ${_luauType(prop)}${_optionalSuffix(prop)},',
+          );
+        }
+        buffer.writeln('}');
+        buffer.writeln();
       }
-      buffer.writeln('}');
-      buffer.writeln();
     }
   }
 
   void _writeUiDeclare(StringBuffer buffer, List<LuaClassInfo> widgets) {
     buffer.writeln('declare ui: {');
     for (final widget in widgets) {
-      buffer.writeln(
-        '  ${widget.luaName}: (props: ${widget.luaName}Props) -> Widget,',
-      );
+      for (final ctor in widget.constructors) {
+        buffer.writeln(
+          '  ${ctor.luaName}: (props: ${ctor.luaName}Props) -> Widget,',
+        );
+      }
     }
     buffer.writeln('  getState: (key: string) -> string?,');
     buffer.writeln('  setState: (key: string, value: string) -> (),');
@@ -90,8 +108,8 @@ class LuauStubGenerator {
   }
 
   String _optionalSuffix(PropertyInfo prop) {
-    // Required non-nullable fields omit `?`; everything else is optional/nilable.
-    if (prop.required && !prop.isNullable) return '';
+    // Required = non-nullable with no Dart default.
+    if (prop.required) return '';
     return '?';
   }
 
@@ -107,7 +125,6 @@ class LuauStubGenerator {
 
     final info = TypeMapping.getForDartType(prop.dartType);
     if (info != null) {
-      // Luau annotations use `number` for both int and double.
       if (info.lua == 'integer' || info.lua == 'number') return 'number';
       if (info.lua == 'boolean') return 'boolean';
       if (info.lua == 'string') return 'string';

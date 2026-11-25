@@ -18,7 +18,7 @@ GENERATED_PATHS=(
   example/assets/plugins/_types/ui.d.luau
   example/assets/plugins/_types/host.d.luau
   example/assets/plugins/_types/capabilities.d.luau
-  example/lib/widgets/widget_serializers.g.dart
+  example/lib/fluau/widget_serializers.g.dart
   example/rust/src/lua_engine.rs
   example/rust/src/api/lua.rs
   example/lib/vpn_provider.g.dart

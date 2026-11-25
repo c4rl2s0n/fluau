@@ -8,7 +8,7 @@ working directory (usually the Flutter app root).
 ## Optional by default
 
 You can run bootstrap or codegen with **no** `fluau.yaml`. Built-in defaults
-match a common FRB layout (`rust/`, `src/api/fluau.rs`, `lib/fluau_bridge.g.dart`,
+match a common FRB layout (`rust/`, `src/api/fluau.rs`, `lib/fluau/`,
 `lib/`, `lib/widgets/`, `assets/plugins/_types`). The Dart adapter import is
 inferred as `package:<pubspec.name>/src/rust/api/fluau.dart`.
 
@@ -34,8 +34,9 @@ rust:
   api_module: src/api/fluau.rs
 
 dart:
-  # Stamped LuaPluginBridge adapter.
-  bridge_adapter: lib/fluau_bridge.g.dart
+  # Generated Dart fluau root (bridge + widget_serializers.g.dart).
+  lua_root: lib/fluau/
+  # bridge_adapter defaults to <lua_root>/fluau_bridge.g.dart
 
 codegen:
   input: lib/                 # @LuaCapability scan root
@@ -50,8 +51,8 @@ frb_version: "2.13.0"
 
 | Consumer | Keys |
 |----------|------|
-| `fluau:bootstrap` | `rust.crate_root`, `rust.api_module`, `dart.bridge_adapter`, `dart.frb_plugin_import`, `frb_version` |
-| `fluau_codegen` | `rust.crate_root` → rust-out `<crate_root>/src`; `codegen.input` / `widgets` / `luau_out` / `dart_out`; if `codegen.luau_out` omitted, parent of `stubs.ui_d_luau` |
+| `fluau:bootstrap` | `rust.crate_root`, `rust.api_module`, `dart.lua_root`, `dart.bridge_adapter`, `dart.frb_plugin_import`, `frb_version` |
+| `fluau_codegen` | `rust.crate_root` → rust-out `<crate_root>/src`; `dart.lua_root` → `widget_serializers.g.dart`; `codegen.input` / `widgets` / `luau_out` / `dart_out`; if `codegen.luau_out` omitted, parent of `stubs.ui_d_luau` |
 
 Omit any key to keep its default. Path resolution for codegen:
 **CLI flags > fluau.yaml > built-in defaults**.

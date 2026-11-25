@@ -53,6 +53,8 @@ void main(List<String> args) async {
         rustOutputDir: parsed.rustOut!,
         dartOutputDir: parsed.dartOut!,
         luauOutputDir: parsed.luauOut,
+        packageRoot: parsed.packageRoot,
+        packageName: parsed.packageName,
       );
     }
     if (doCapabilities) {
@@ -100,6 +102,8 @@ class _CliArgs {
   final String? luauOut;
   final String? deprecatedAlias;
   final String? configPathUsed;
+  final String packageRoot;
+  final String? packageName;
 
   _CliArgs({
     required this.mode,
@@ -110,6 +114,8 @@ class _CliArgs {
     this.luauOut,
     this.deprecatedAlias,
     this.configPathUsed,
+    required this.packageRoot,
+    this.packageName,
   });
 
   factory _CliArgs.parse(List<String> args) {
@@ -196,6 +202,8 @@ class _CliArgs {
       path.absolute(luauOut ?? fromYaml.luauOut),
     );
 
+    final packageRoot = path.normalize(path.absolute('.'));
+
     switch (resolvedMode) {
       case _Mode.capabilities:
         return _CliArgs(
@@ -204,18 +212,21 @@ class _CliArgs {
           luauOut: resolvedLuau,
           deprecatedAlias: deprecatedAlias,
           configPathUsed: fromYaml.configPathUsed,
+          packageRoot: packageRoot,
+          packageName: fromYaml.packageName,
         );
       case _Mode.widgets:
         return _CliArgs(
           mode: resolvedMode,
           widgetsInput: widgetsDir,
           rustOut: resolvedRust,
-          dartOut: path.normalize(
-            path.absolute(dartOut ?? widgetsDir),
-          ),
+          // Serializers go under lua_root (yaml dartOut), not next to widgets.
+          dartOut: resolvedDart,
           luauOut: resolvedLuau,
           deprecatedAlias: deprecatedAlias,
           configPathUsed: fromYaml.configPathUsed,
+          packageRoot: packageRoot,
+          packageName: fromYaml.packageName,
         );
       case _Mode.all:
         return _CliArgs(
@@ -227,6 +238,8 @@ class _CliArgs {
           luauOut: resolvedLuau,
           deprecatedAlias: deprecatedAlias,
           configPathUsed: fromYaml.configPathUsed,
+          packageRoot: packageRoot,
+          packageName: fromYaml.packageName,
         );
     }
   }
@@ -238,10 +251,13 @@ Future<void> generateWidgets({
   required String rustOutputDir,
   required String dartOutputDir,
   String? luauOutputDir,
+  required String packageRoot,
+  String? packageName,
 }) async {
   final absoluteInputDir = path.normalize(path.absolute(inputDir));
   final absoluteRust = path.normalize(path.absolute(rustOutputDir));
   final absoluteDart = path.normalize(path.absolute(dartOutputDir));
+  final absolutePackageRoot = path.normalize(path.absolute(packageRoot));
   final absoluteLuau = path.normalize(
     path.absolute(
       luauOutputDir ??
@@ -254,7 +270,7 @@ Future<void> generateWidgets({
   print('');
   print('Input directory: $absoluteInputDir');
   print('Rust output: $absoluteRust');
-  print('Dart output: $absoluteDart');
+  print('Dart output (lua_root): $absoluteDart');
   print('Luau output: $absoluteLuau');
   print('');
 
@@ -297,11 +313,15 @@ Future<void> generateWidgets({
   print('  Written: ${apiFile.path}');
 
   print('Generating Dart code...');
-  final dartGenerator = DartSerializerGenerator();
-  final dartCode = dartGenerator.generateAll(classes);
-
   await Directory(absoluteDart).create(recursive: true);
   final dartFile = File(path.join(absoluteDart, 'widget_serializers.g.dart'));
+  final dartGenerator = DartSerializerGenerator();
+  final dartCode = dartGenerator.generateAll(
+    classes,
+    outputFile: dartFile.path,
+    packageRoot: absolutePackageRoot,
+    packageName: packageName,
+  );
   await dartFile.writeAsString(dartCode);
   print('  Written: ${dartFile.path}');
 

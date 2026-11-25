@@ -2,21 +2,25 @@
 ///
 /// These annotations are used by the code generator to:
 /// - Identify which classes should be exposed to Lua
-/// - Extract property information for serialization
-/// - Generate Rust UserData structs and Lua API bindings
+/// - Extract constructor-parameter information for serialization
+/// - Generate Rust UI builders and Luau stubs
 library;
 
 /// Marks a class as a Lua-exposable widget.
 ///
 /// Widget classes must implement [LuaWidgetInterface] (have a build method).
-/// The code generator will create Lua constructors, serializers, and stubs.
+/// The code generator exposes each public generative constructor: the
+/// **constructor parameters** are the Lua snapshot API. Unnamed → `ui.<name>`;
+/// named ctor `styled` → `ui.<name>_styled`.
 ///
 /// Example:
 /// ```dart
 /// @LuaWidget(name: 'Text')
 /// class LuaTextWidget implements LuaWidgetInterface {
-///   @LuaProperty(required: true)
 ///   final String text;
+///   final String? color;
+///
+///   const LuaTextWidget({required this.text, this.color});
 ///
 ///   @override
 ///   Widget build(BuildContext context) => Text(text);
@@ -36,14 +40,15 @@ class LuaWidget {
 ///
 /// Data classes are used for nested properties like styles, configurations, etc.
 /// They don't have a build method and can't be instantiated directly from Lua
-/// as top-level widgets.
+/// as top-level widgets. Same constructor-param rules as [LuaWidget].
 ///
 /// Example:
 /// ```dart
 /// @LuaData(name: 'TextStyle')
 /// class LuaTextStyle {
-///   @LuaProperty()
 ///   final String? color;
+///
+///   const LuaTextStyle({this.color});
 ///
 ///   TextStyle? toTextStyle() => ...;
 /// }
@@ -55,33 +60,28 @@ class LuaData {
   const LuaData({this.name});
 }
 
-/// Marks a property as exposable to Lua.
+/// Optional rename / kind hint on a **constructor parameter**.
 ///
-/// Only properties with this annotation will be included in the Lua API.
-/// Properties without this annotation are ignored by the code generator.
+/// Discovery does not require this annotation — every public generative ctor
+/// param is exposed unless it is a Flutter [Key]. Use [LuaProperty] only to
+/// override the Lua JSON key name when it should differ from the Dart param.
+///
+/// Required/optional is inferred: non-nullable with no default → required;
+/// nullable or with a Dart default → optional.
 ///
 /// Example:
 /// ```dart
-/// @LuaWidget(name: 'Text')
-/// class LuaTextWidget implements LuaWidget {
-///   @LuaProperty(required: true)
-///   final String text;  // Required in Lua
-///
-///   @LuaProperty()
-///   final String? color;  // Optional in Lua
-///
-///   final int _internal;  // NOT exposed to Lua (no annotation)
-///
-///   @override
-///   Widget build(BuildContext context) => ...;
-/// }
+/// const LuaTextWidget({
+///   required this.text,
+///   @LuaProperty(name: 'colour') this.color,
+/// });
 /// ```
 class LuaProperty {
-  /// The name to use in Lua (defaults to field name)
+  /// The name to use in Lua (defaults to parameter name)
   final String? name;
 
-  /// Whether this property is required in Lua
-  /// If true, Lua scripts must provide this property
+  /// Deprecated for inference — nullability/defaults control requiredness.
+  /// Kept for source compatibility; ignored by constructor-based codegen.
   final bool required;
 
   /// Default value as a Lua expression (e.g., '"hello"', '42', 'true')
@@ -91,23 +91,16 @@ class LuaProperty {
   const LuaProperty({this.name, this.required = false, this.defaultValue});
 }
 
-/// Marks a property as containing child widgets.
+/// Optional rename for a child-list constructor parameter.
 ///
-/// This is used for widget containers like Column, Row, etc.
-/// The property type should be List<LuaWidget> or similar.
+/// Usually unnecessary: `List<LuaWidgetInterface>` params are inferred as
+/// children. Use to override the Lua key name.
 ///
 /// Example:
 /// ```dart
-/// @LuaWidget(name: 'Column', hasChildren: true)
-/// class LuaColumnWidget implements LuaWidget {
-///   @LuaChildren()
-///   final List<LuaWidget>? children;
-///
-///   @override
-///   Widget build(BuildContext context) => Column(
-///     children: children?.map((w) => w.build(context)).toList() ?? [],
-///   );
-/// }
+/// const LuaColumnWidget({
+///   @LuaChildren() this.children,
+/// });
 /// ```
 ///
 /// Lua usage:
@@ -120,22 +113,24 @@ class LuaProperty {
 /// }
 /// ```
 class LuaChildren {
-  /// The name to use in Lua (defaults to field name)
+  /// The name to use in Lua (defaults to parameter name)
   final String? name;
 
   const LuaChildren({this.name});
 }
 
-/// Marks a property as an event payload forwarded to the plugin host.
+/// Optional rename for an event-payload constructor parameter.
 ///
-/// The property type should be `Map<String, dynamic>?`.
+/// Usually unnecessary: `Map<String, dynamic>` params are inferred as
+/// callbacks. The property type should be `Map<String, dynamic>?`.
 /// Lua supplies a table (e.g. `{ type = "login" }`) which is embedded in the
 /// UI JSON snapshot. Flutter dispatches that map via [PluginEventScope].
 ///
 /// Example:
 /// ```dart
-/// @LuaCallback()
-/// final Map<String, dynamic>? onPressed;
+/// const LuaButtonWidget({
+///   @LuaCallback() this.onPressed,
+/// });
 /// ```
 ///
 /// Lua usage:
@@ -146,7 +141,7 @@ class LuaChildren {
 /// }
 /// ```
 class LuaCallback {
-  /// The name to use in Lua (defaults to field name)
+  /// The name to use in Lua (defaults to parameter name)
   final String? name;
 
   const LuaCallback({this.name});

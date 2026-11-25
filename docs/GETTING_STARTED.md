@@ -66,7 +66,8 @@ Once FRB already works in your project:
      crate_root: rust/
      api_module: src/api/fluau.rs
    dart:
-     bridge_adapter: lib/fluau_bridge.g.dart
+     lua_root: lib/fluau/
+     # bridge_adapter defaults to <lua_root>/fluau_bridge.g.dart
    frb_version: "2.13.0"
    ```
 

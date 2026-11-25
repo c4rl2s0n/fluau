@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:fluau/fluau.dart';
-import 'package:luatest/fluau_bridge.g.dart';
+import 'package:luatest/fluau/fluau_bridge.g.dart';
+import 'package:luatest/fluau/widget_serializers.g.dart';
 import 'package:luatest/src/rust/frb_generated.dart';
 import 'package:luatest/vpn_provider.dart';
-import 'package:luatest/widgets/catalog.dart';
 
 late PluginGrantStore grantStore;
 

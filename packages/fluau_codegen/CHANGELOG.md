@@ -1,3 +1,11 @@
+## 0.1.3
+
+- Constructor-param Lua API: generative ctor parameters are the snapshot surface;
+  multi-ctor auto names (`Text` / `Text_styled`); `Key` skipped; required/optional
+  from nullability and Dart defaults; param annotations are rename-only.
+- Standalone `widget_serializers.g.dart` under `dart.lua_root` (default
+  `lib/fluau/`) — no `catalog.dart` / `part of` coupling.
+
 ## 0.1.2
 
 - Paths from `fluau.yaml` (optional) with built-in defaults; CLI flags override.

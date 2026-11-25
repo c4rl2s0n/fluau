@@ -25,7 +25,7 @@ on crates.io (and typically `fluau_codegen` on pub.dev for UI/capability generat
 
 ```yaml
 dependencies:
-  fluau: ^0.1.7
+  fluau: ^0.1.8
 ```
 
 Also depend on the Rust crate [`fluau`](https://crates.io/crates/fluau)
@@ -60,9 +60,9 @@ Then:
 ```dart
 WidgetsFlutterBinding.ensureInitialized();
 await RustLib.init(); // runs #[frb(init)] → fluau::setup on the Rust side
-LuaPluginBridge.bind(FrbLuaPluginBridge()); // stamped lib/fluau_bridge.g.dart
+LuaPluginBridge.bind(FrbLuaPluginBridge()); // stamped lib/fluau/fluau_bridge.g.dart
 await PluginRegistryLoader.registerPackages([...]);
-// LuaPlugin(pluginId: '...', buildWidget: YourRegistry.buildFromMap, ...)
+// LuaPlugin(pluginId: '...', buildWidget: LuaWidgetRegistry.buildFromMap, ...)
 ```
 
 Pass your UI catalog into `LuaPlugin` / `LuaPluginView` via `buildWidget` — this

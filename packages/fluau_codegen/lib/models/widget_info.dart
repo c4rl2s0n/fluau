@@ -1,34 +1,46 @@
-/// Data models for the Lua plugin code generator
-///
-/// These classes represent the information extracted from Dart source files
-/// and are used to generate Rust and Dart code.
+/// Data models for the Lua plugin code generator.
+
+/// One generative constructor exposed to Lua.
+class LuaConstructorInfo {
+  /// Dart constructor name; empty string = unnamed.
+  final String dartName;
+
+  /// Lua entry name (`Text`, `Text_styled`, …).
+  final String luaName;
+
+  /// Constructor parameters (Lua snapshot fields), in declaration order.
+  final List<PropertyInfo> parameters;
+
+  const LuaConstructorInfo({
+    required this.dartName,
+    required this.luaName,
+    required this.parameters,
+  });
+
+  bool get isUnnamed => dartName.isEmpty;
+
+  /// Tear-off / call site: `LuaFoo` or `LuaFoo.styled`.
+  String dartCall(String className) =>
+      isUnnamed ? className : '$className.$dartName';
+}
 
 /// Information about a Lua-exposable class (widget or data class)
 class LuaClassInfo {
-  /// The Dart class name (e.g., 'LuaTextWidget')
   final String name;
-  
-  /// The Dart class name as it appears in source (with generics if any)
   final String dartClassName;
-  
-  /// The Rust struct name to generate (e.g., 'LuaLuaTextWidget' or custom)
   final String rustStructName;
-  
-  /// The name to use in Lua (e.g., 'Text')
+
+  /// Primary Lua widget / data name from `@LuaWidget` / `@LuaData`.
   final String luaName;
-  
-  /// Whether this is a widget (true) or data class (false)
+
   final bool isWidget;
-  
-  /// Whether this widget can have children
   final bool hasChildren;
-  
-  /// List of properties for this class
-  final List<PropertyInfo> properties;
-  
-  /// The Dart file where this class is defined
+
+  /// All generative constructors exposed to Lua.
+  final List<LuaConstructorInfo> constructors;
+
   final String sourceFile;
-  
+
   const LuaClassInfo({
     required this.name,
     required this.dartClassName,
@@ -36,82 +48,83 @@ class LuaClassInfo {
     required this.luaName,
     required this.isWidget,
     this.hasChildren = false,
-    required this.properties,
+    required this.constructors,
     required this.sourceFile,
   });
-  
-  /// Check if this class has any properties
+
+  /// Primary ctor params (unnamed if present, else first).
+  List<PropertyInfo> get properties {
+    if (constructors.isEmpty) return const [];
+    final unnamed = constructors.where((c) => c.isUnnamed);
+    if (unnamed.isNotEmpty) return unnamed.first.parameters;
+    return constructors.first.parameters;
+  }
+
   bool get hasProperties => properties.isNotEmpty;
-  
-  /// Get all child widget properties
-  List<PropertyInfo> get childWidgetProperties => 
-    properties.where((p) => p.isChildWidget).toList();
-  
-  /// Get all child list properties
-  List<PropertyInfo> get childListProperties => 
-    properties.where((p) => p.isChildList).toList();
-  
-  /// Get all callback properties
-  List<PropertyInfo> get callbackProperties => 
-    properties.where((p) => p.isCallback).toList();
-  
-  /// Get all data class properties
-  List<PropertyInfo> get dataClassProperties => 
-    properties.where((p) => p.isDataClass).toList();
+
+  List<PropertyInfo> get childWidgetProperties =>
+      properties.where((p) => p.isChildWidget).toList();
+
+  List<PropertyInfo> get childListProperties =>
+      properties.where((p) => p.isChildList).toList();
+
+  List<PropertyInfo> get callbackProperties =>
+      properties.where((p) => p.isCallback).toList();
+
+  List<PropertyInfo> get dataClassProperties =>
+      properties.where((p) => p.isDataClass).toList();
 }
 
-/// Information about a class property
+/// Constructor parameter / Lua snapshot field.
 class PropertyInfo {
-  /// The property name in Dart (e.g., 'text')
+  /// Lua / JSON key (and usually the Dart param name).
   final String name;
-  
-  /// The Dart type as string (e.g., 'String', 'int?', 'LuaTextStyle?')
-  final String dartType;
-  
-  /// The Rust type to use (e.g., 'String', 'i64', 'Option<Box<LuaTextStyle>>')
-  final String rustType;
-  
-  /// Whether this property is required in Lua
-  final bool required;
-  
-  /// Default value as a Lua expression (optional)
-  final String? defaultValue;
-  
-  /// Whether this property is a child widget (single)
-  final bool isChildWidget;
-  
-  /// Whether this property is a list of child widgets
-  final bool isChildList;
 
-  /// Whether this property is a `List<String>` (e.g. Select options)
+  /// Dart parameter name for the constructor call.
+  final String dartParamName;
+
+  final String dartType;
+  final String rustType;
+
+  /// Required in Lua (non-nullable, no Dart default).
+  final bool required;
+
+  /// Param has a Dart default — omit from ctor call when JSON key absent.
+  final bool hasConstructorDefault;
+
+  /// Source text of the Dart default expression, when present.
+  final String? defaultValueCode;
+
+  final String? defaultValue;
+  final bool isChildWidget;
+  final bool isChildList;
   final bool isStringList;
-  
-  /// Whether this property is a callback
   final bool isCallback;
-  
-  /// Whether this property is a custom data class (with @LuaData)
   final bool isDataClass;
-  
-  /// Whether this property is an enum type
   final bool isEnum;
-  
-  /// For enum properties, the list of valid enum constant names
   final List<String>? enumValues;
-  
-  /// For data class properties, the name of the nested class
+  final String? typeSourceFile;
   final String? nestedClassName;
-  
-  /// Whether the Dart type is nullable
+
   bool get isNullable => dartType.endsWith('?');
-  
-  /// The non-nullable Dart type
-  String get nonNullableDartType => isNullable ? dartType.substring(0, dartType.length - 1) : dartType;
-  
+
+  String get nonNullableDartType =>
+      isNullable ? dartType.substring(0, dartType.length - 1) : dartType;
+
+  /// Optional in Lua: nullable or has a constructor default.
+  bool get isOptionalInLua => !required;
+
+  /// Omit named arg when JSON key missing (non-null + Dart default).
+  bool get omitWhenAbsent => hasConstructorDefault && !isNullable;
+
   const PropertyInfo({
     required this.name,
+    required this.dartParamName,
     required this.dartType,
     required this.rustType,
     this.required = false,
+    this.hasConstructorDefault = false,
+    this.defaultValueCode,
     this.defaultValue,
     this.isChildWidget = false,
     this.isChildList = false,
@@ -120,18 +133,18 @@ class PropertyInfo {
     this.isDataClass = false,
     this.isEnum = false,
     this.enumValues,
+    this.typeSourceFile,
     this.nestedClassName,
   });
 }
 
-/// Type information for built-in type mappings
 class TypeInfo {
   final String dart;
   final String rust;
   final String lua;
   final String dartFromJson;
   final String dartToJson;
-  
+
   const TypeInfo({
     required this.dart,
     required this.rust,
@@ -141,7 +154,6 @@ class TypeInfo {
   });
 }
 
-/// Maps Dart type names to their Rust and Lua equivalents
 class TypeMapping {
   static const Map<String, TypeInfo> builtInTypes = {
     'String': TypeInfo(
@@ -181,24 +193,22 @@ class TypeMapping {
     ),
     'dynamic': TypeInfo(
       dart: 'dynamic',
-      rust: 'Value',  // mlua::Value
+      rust: 'Value',
       lua: 'any',
       dartFromJson: 'value',
       dartToJson: 'value',
     ),
   };
-  
-  /// Get type info for a Dart type, handling nullable types
+
   static TypeInfo? getForDartType(String dartType) {
-    final cleanType = dartType.endsWith('?') 
-      ? dartType.substring(0, dartType.length - 1) 
-      : dartType;
+    final cleanType =
+        dartType.endsWith('?') ? dartType.substring(0, dartType.length - 1) : dartType;
     return builtInTypes[cleanType];
   }
-  
-  /// Check if a type is a built-in primitive
+
   static bool isBuiltInType(String type) {
-    final cleanType = type.endsWith('?') ? type.substring(0, type.length - 1) : type;
+    final cleanType =
+        type.endsWith('?') ? type.substring(0, type.length - 1) : type;
     return builtInTypes.containsKey(cleanType);
   }
 }
