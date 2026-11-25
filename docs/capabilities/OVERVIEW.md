@@ -35,8 +35,8 @@ here.
 ## Regenerate
 
 ```bash
-cd example && dart run build_runner build   # Dart *.g.dart parts
-./tool/generate.sh                          # full refresh including Luau stubs
+dart run fluau_codegen --capabilities --input lib --luau-out assets/plugins/_types
+# or full refresh: ./tool/generate.sh
 ```
 
 See [codegen/WHEN_TO_RUN.md](../codegen/WHEN_TO_RUN.md).

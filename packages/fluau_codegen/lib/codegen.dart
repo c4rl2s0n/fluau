@@ -1,40 +1,59 @@
-/// fluau Code Generator
+/// fluau Code Generator CLI.
 ///
-/// Main entry point for the code generation CLI.
-/// This tool parses Dart files with LuaWidget/LuaData annotations
-/// and generates Rust and Dart code for the Lua plugin framework.
+/// Default: generate widgets + capabilities.
+/// Selective: `--widgets` or `--capabilities`.
+/// Deprecated aliases: `--generate`, `--generate-capabilities`.
 
 library fluau_codegen;
 
-import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
-import 'capability_codegen.dart' as capability_codegen;
-import 'parsers/annotation_parser.dart';
-import 'generators/rust_generator.dart';
+import 'capability_codegen.dart';
 import 'generators/dart_serializer_generator.dart';
 import 'generators/luau_stub_generator.dart';
+import 'generators/rust_generator.dart';
+import 'parsers/annotation_parser.dart';
 
-/// Main entry point for the code generator CLI
+enum _Mode { all, widgets, capabilities }
+
+/// Main entry point for the code generator CLI.
 void main(List<String> args) async {
-  if (args.isEmpty) {
+  if (args.isEmpty || args.contains('--help') || args.contains('-h')) {
     _printUsage();
-    exit(1);
+    exit(args.isEmpty ? 1 : 0);
   }
 
   try {
-    if (args[0] == '--generate-capabilities') {
-      await capability_codegen.runCapabilityCodegen(args);
-      return;
+    final parsed = _CliArgs.parse(args);
+    if (parsed.deprecatedAlias != null) {
+      stderr.writeln(
+        'warning: ${parsed.deprecatedAlias} is deprecated; '
+        'use ${parsed.mode == _Mode.widgets ? '--widgets' : '--capabilities'} '
+        '(or omit for generate-all).',
+      );
     }
-    if (args[0] != '--generate') {
-      _printUsage();
-      exit(1);
+
+    final doWidgets =
+        parsed.mode == _Mode.all || parsed.mode == _Mode.widgets;
+    final doCapabilities =
+        parsed.mode == _Mode.all || parsed.mode == _Mode.capabilities;
+
+    if (doWidgets) {
+      await generateWidgets(
+        inputDir: parsed.widgetsInput!,
+        rustOutputDir: parsed.rustOut!,
+        dartOutputDir: parsed.dartOut!,
+        luauOutputDir: parsed.luauOut,
+      );
     }
-    final cli = LuaCodegenCli.fromArgs(args);
-    await cli.run();
+    if (doCapabilities) {
+      await generateCapabilities(
+        inputDir: parsed.capabilitiesInput!,
+        luauOut: parsed.luauOut,
+      );
+    }
   } catch (e, stackTrace) {
     print('Error: $e');
     print('Stack trace:');
@@ -43,64 +62,93 @@ void main(List<String> args) async {
   }
 }
 
-/// Print usage information
 void _printUsage() {
   print('fluau Code Generator');
   print('');
-  print('Usage:');
-  print('  dart run fluau_codegen --generate \\');
-  print('    --input <dart_directory> \\');
-  print('    --rust-out <rust_directory> \\');
-  print('    --dart-out <dart_directory> \\');
-  print('    [--luau-out <luau_directory>]');
+  print('Default (widgets + capabilities):');
+  print('  dart run fluau_codegen \\');
+  print('    --input <dart_lib_dir> \\');
+  print('    --rust-out <rust_src_dir> \\');
+  print('    [--widgets-input <widgets_dir>] \\');
+  print('    [--dart-out <widgets_dir>] \\');
+  print('    [--luau-out <luau_stubs_dir>]');
   print('');
-  print('  dart run fluau_codegen --generate-capabilities \\');
-  print('    --input <dart_directory> \\');
-  print('    [--luau-out <luau_directory>]');
+  print('Widgets only:');
+  print('  dart run fluau_codegen --widgets \\');
+  print('    --input <widgets_dir> \\');
+  print('    --rust-out <rust_src_dir> \\');
+  print('    [--dart-out <widgets_dir>] \\');
+  print('    [--luau-out <luau_stubs_dir>]');
   print('');
-  print('Widget mode writes lua_engine.rs + widget_serializers + ui.d.luau.');
-  print('Capability mode writes *.g.dart parts + capabilities.d.luau.');
+  print('Capabilities only:');
+  print('  dart run fluau_codegen --capabilities \\');
+  print('    --input <dart_lib_dir> \\');
+  print('    [--luau-out <luau_stubs_dir>]');
+  print('');
+  print('Writes: widget_serializers.g.dart, lua_engine.rs, api/lua.rs,');
+  print('ui.d.luau, capability *.g.dart parts, capabilities.d.luau.');
 }
 
-/// CLI for the code generator
-class LuaCodegenCli {
-  final String inputDir;
-  final String rustOutputDir;
-  final String dartOutputDir;
-  final String luauOutputDir;
-  
-  LuaCodegenCli({
-    required this.inputDir,
-    required this.rustOutputDir,
-    required this.dartOutputDir,
-    required this.luauOutputDir,
+class _CliArgs {
+  final _Mode mode;
+  final String? capabilitiesInput;
+  final String? widgetsInput;
+  final String? rustOut;
+  final String? dartOut;
+  final String? luauOut;
+  final String? deprecatedAlias;
+
+  _CliArgs({
+    required this.mode,
+    this.capabilitiesInput,
+    this.widgetsInput,
+    this.rustOut,
+    this.dartOut,
+    this.luauOut,
+    this.deprecatedAlias,
   });
-  
-  /// Create from command-line arguments
-  factory LuaCodegenCli.fromArgs(List<String> args) {
-    if (args.length < 4) {
-      throw ArgumentError(
-        'Missing arguments. Expected: --generate --input <dir> '
-        '--rust-out <dir> --dart-out <dir> [--luau-out <dir>]',
-      );
-    }
-    
-    // Parse arguments: --generate --input <input> --rust-out <rust> --dart-out <dart> [--luau-out <luau>]
-    String? inputDir;
+
+  factory _CliArgs.parse(List<String> args) {
+    _Mode? mode;
+    String? deprecatedAlias;
+    String? input;
+    String? widgetsInput;
     String? rustOut;
     String? dartOut;
     String? luauOut;
-    
-    for (int i = 1; i < args.length; i += 2) {
+
+    for (var i = 0; i < args.length; i++) {
       final flag = args[i];
-      if (i + 1 >= args.length) {
-        throw ArgumentError('Missing value for flag: $flag');
+      switch (flag) {
+        case '--widgets':
+          mode = _Mode.widgets;
+          continue;
+        case '--capabilities':
+          mode = _Mode.capabilities;
+          continue;
+        case '--generate':
+          mode = _Mode.widgets;
+          deprecatedAlias = '--generate';
+          continue;
+        case '--generate-capabilities':
+          mode = _Mode.capabilities;
+          deprecatedAlias = '--generate-capabilities';
+          continue;
       }
-      final value = args[i + 1];
-      
+
+      if (!flag.startsWith('--')) {
+        throw ArgumentError('Unexpected argument: $flag');
+      }
+      if (i + 1 >= args.length) {
+        throw ArgumentError('Missing value for $flag');
+      }
+      final value = args[++i];
       switch (flag) {
         case '--input':
-          inputDir = value;
+          input = value;
+          break;
+        case '--widgets-input':
+          widgetsInput = value;
           break;
         case '--rust-out':
           rustOut = value;
@@ -115,107 +163,156 @@ class LuaCodegenCli {
           throw ArgumentError('Unknown flag: $flag');
       }
     }
-    
-    if (inputDir == null || rustOut == null || dartOut == null) {
-      throw ArgumentError('Missing required arguments');
+
+    final resolvedMode = mode ?? _Mode.all;
+    if (input == null) {
+      throw ArgumentError('Missing required --input');
     }
-    
-    return LuaCodegenCli(
-      inputDir: inputDir,
-      rustOutputDir: rustOut,
-      dartOutputDir: dartOut,
-      luauOutputDir: luauOut ?? '../../assets/plugins/_types',
+
+    final absoluteInput = path.normalize(path.absolute(input));
+
+    switch (resolvedMode) {
+      case _Mode.capabilities:
+        return _CliArgs(
+          mode: resolvedMode,
+          capabilitiesInput: absoluteInput,
+          luauOut: luauOut,
+          deprecatedAlias: deprecatedAlias,
+        );
+      case _Mode.widgets:
+        if (rustOut == null) {
+          throw ArgumentError('Missing required --rust-out for --widgets');
+        }
+        final wInput = path.normalize(
+          path.absolute(widgetsInput ?? absoluteInput),
+        );
+        return _CliArgs(
+          mode: resolvedMode,
+          widgetsInput: wInput,
+          rustOut: path.normalize(path.absolute(rustOut)),
+          dartOut: path.normalize(
+            path.absolute(dartOut ?? wInput),
+          ),
+          luauOut: luauOut,
+          deprecatedAlias: deprecatedAlias,
+        );
+      case _Mode.all:
+        if (rustOut == null) {
+          throw ArgumentError(
+            'Missing required --rust-out for generate-all (default)',
+          );
+        }
+        final inferredWidgets = path.join(absoluteInput, 'widgets');
+        final wInput = path.normalize(
+          path.absolute(
+            widgetsInput ??
+                (Directory(inferredWidgets).existsSync()
+                    ? inferredWidgets
+                    : absoluteInput),
+          ),
+        );
+        return _CliArgs(
+          mode: resolvedMode,
+          capabilitiesInput: absoluteInput,
+          widgetsInput: wInput,
+          rustOut: path.normalize(path.absolute(rustOut)),
+          dartOut: path.normalize(
+            path.absolute(dartOut ?? wInput),
+          ),
+          luauOut: luauOut,
+          deprecatedAlias: deprecatedAlias,
+        );
+    }
+  }
+}
+
+/// Generate widget serializers, Rust UI glue, and `ui.d.luau`.
+Future<void> generateWidgets({
+  required String inputDir,
+  required String rustOutputDir,
+  required String dartOutputDir,
+  String? luauOutputDir,
+}) async {
+  final absoluteInputDir = path.normalize(path.absolute(inputDir));
+  final absoluteRust = path.normalize(path.absolute(rustOutputDir));
+  final absoluteDart = path.normalize(path.absolute(dartOutputDir));
+  final absoluteLuau = path.normalize(
+    path.absolute(
+      luauOutputDir ?? path.join(absoluteInputDir, '../../assets/plugins/_types'),
+    ),
+  );
+
+  print('fluau Widget Code Generator');
+  print('===========================');
+  print('');
+  print('Input directory: $absoluteInputDir');
+  print('Rust output: $absoluteRust');
+  print('Dart output: $absoluteDart');
+  print('Luau output: $absoluteLuau');
+  print('');
+
+  print('Analyzing Dart files...');
+  final parser = AnnotationParser();
+  final classes = await parser.parseDirectory(absoluteInputDir);
+
+  print('Found ${classes.length} Lua classes:');
+  for (final luaClass in classes) {
+    print(
+      '  - ${luaClass.dartClassName} '
+      '(${luaClass.isWidget ? 'widget' : 'data class'}) '
+      '-> Lua: ${luaClass.luaName}',
     );
   }
-  
-  /// Run the code generation
-  Future<void> run() async {
-    print('fluau Code Generator');
-    print('========================');
-    print('');
-    print('Input directory: $inputDir');
-    print('Rust output: $rustOutputDir');
-    print('Dart output: $dartOutputDir');
-    print('Luau output: $luauOutputDir');
-    print('');
-    
-    // Create analysis context
-    print('Analyzing Dart files...');
-    final absoluteInputDir = path.normalize(path.absolute(inputDir));
-    
-    // Parse all Dart files in the input directory
-    final parser = AnnotationParser();
-    final classes = await parser.parseDirectory(absoluteInputDir);
-    
-    print('Found ${classes.length} Lua classes:');
-    for (final luaClass in classes) {
-      print('  - ${luaClass.dartClassName} (${luaClass.isWidget ? 'widget' : 'data class'}) -> Lua: ${luaClass.luaName}');
-    }
-    print('');
-    
-    if (classes.isEmpty) {
-      print('No Lua classes found. Make sure your classes have @LuaWidget or @LuaData annotations.');
-      return;
-    }
-    
-    // Generate Rust code
-    print('Generating Rust code...');
-    final rustGenerator = RustGenerator();
-    final rustCode = rustGenerator.generateModule(classes);
-    
-    // Ensure output directory exists
-    await Directory(rustOutputDir).create(recursive: true);
-    
-    // Write Rust file
-    final rustFile = File(path.join(rustOutputDir, 'lua_engine.rs'));
-    await rustFile.writeAsString(rustCode);
-    print('  Written: ${rustFile.path}');
-    
-    // Generate API bindings
-    final apiCode = _generateApiBindings();
-    final apiDir = Directory(path.join(rustOutputDir, 'api'));
-    await apiDir.create(recursive: true);
-    final apiFile = File(path.join(apiDir.path, 'lua.rs'));
-    await apiFile.writeAsString(apiCode);
-    print('  Written: ${apiFile.path}');
-    
-    // Generate Dart code
-    print('Generating Dart code...');
-    final dartGenerator = DartSerializerGenerator();
-    final dartCode = dartGenerator.generateAll(classes);
-    
-    // Ensure output directory exists
-    await Directory(dartOutputDir).create(recursive: true);
-    
-    // Write Dart file
-    final dartFile = File(path.join(dartOutputDir, 'widget_serializers.g.dart'));
-    await dartFile.writeAsString(dartCode);
-    print('  Written: ${dartFile.path}');
+  print('');
 
-    // Generate Luau definition stubs
-    print('Generating Luau stubs...');
-    final luauGenerator = LuauStubGenerator();
-    final luauCode = luauGenerator.generate(classes);
-
-    await Directory(luauOutputDir).create(recursive: true);
-    final luauFile = File(path.join(luauOutputDir, 'ui.d.luau'));
-    await luauFile.writeAsString(luauCode);
-    print('  Written: ${luauFile.path}');
-    
-    print('');
-    print('Code generation complete!');
-    print('');
-    print('Next steps:');
-    print('  1. Update Rust Cargo.toml if needed');
-    print('  2. Update Rust lib.rs to export lua_engine module');
-    print('  3. Run `cargo check` to verify Rust code');
-    print('  4. Run `flutter pub get` to update Dart dependencies');
-    print('  5. Point luau-lsp at assets/plugins/_types via .luaurc');
+  if (classes.isEmpty) {
+    print(
+      'No Lua classes found. Make sure your classes have '
+      '@LuaWidget or @LuaData annotations.',
+    );
+    return;
   }
-  
-  /// Generate legacy one-shot Lua API bindings (session API lives in api/plugin.rs).
-  String _generateApiBindings() {
-    return '''
+
+  print('Generating Rust code...');
+  final rustGenerator = RustGenerator();
+  final rustCode = rustGenerator.generateModule(classes);
+
+  await Directory(absoluteRust).create(recursive: true);
+  final rustFile = File(path.join(absoluteRust, 'lua_engine.rs'));
+  await rustFile.writeAsString(rustCode);
+  print('  Written: ${rustFile.path}');
+
+  final apiCode = _generateApiBindings();
+  final apiDir = Directory(path.join(absoluteRust, 'api'));
+  await apiDir.create(recursive: true);
+  final apiFile = File(path.join(apiDir.path, 'lua.rs'));
+  await apiFile.writeAsString(apiCode);
+  print('  Written: ${apiFile.path}');
+
+  print('Generating Dart code...');
+  final dartGenerator = DartSerializerGenerator();
+  final dartCode = dartGenerator.generateAll(classes);
+
+  await Directory(absoluteDart).create(recursive: true);
+  final dartFile = File(path.join(absoluteDart, 'widget_serializers.g.dart'));
+  await dartFile.writeAsString(dartCode);
+  print('  Written: ${dartFile.path}');
+
+  print('Generating Luau stubs...');
+  final luauGenerator = LuauStubGenerator();
+  final luauCode = luauGenerator.generate(classes);
+
+  await Directory(absoluteLuau).create(recursive: true);
+  final luauFile = File(path.join(absoluteLuau, 'ui.d.luau'));
+  await luauFile.writeAsString(luauCode);
+  print('  Written: ${luauFile.path}');
+
+  print('');
+  print('Widget codegen complete!');
+}
+
+String _generateApiBindings() {
+  return '''
 // Generated API bindings for Lua plugin
 // DO NOT EDIT - This file is automatically generated
 //
@@ -253,5 +350,4 @@ pub fn get_all_lua_state() -> Result<String, String> {
     crate::state::get_all_state()
 }
 ''';
-  }
 }

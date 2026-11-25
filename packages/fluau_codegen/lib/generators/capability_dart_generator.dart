@@ -3,8 +3,7 @@
 import '../models/capability_info.dart';
 
 class CapabilityDartGenerator {
-  /// Emit a standalone `part of` file (CLI). Prefer [generatePartBody] for
-  /// build_runner SharedPartBuilder (which supplies `part of` itself).
+  /// Emit a standalone `part of` file for the CLI.
   String generatePart({
     required CapabilityParseResult result,
     required String partOfLibrary,
@@ -21,7 +20,7 @@ class CapabilityDartGenerator {
     return buf.toString();
   }
 
-  /// Body only — used by SharedPartBuilder.
+  /// Body of the generated part (without the `part of` header).
   String generatePartBody(CapabilityParseResult result) {
     if (result.capabilities.isEmpty && result.dtos.isEmpty) {
       return '';

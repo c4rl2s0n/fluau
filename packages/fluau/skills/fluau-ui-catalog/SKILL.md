@@ -10,41 +10,40 @@ description: >-
 ## Guidelines
 
 * fluau does **not** ship default widgets. The app owns the closed vocabulary plugins may emit.
+* Add `fluau_codegen` as a **dev_dependency**. Widgets (and capabilities) are generated with the **CLI only** — do **not** use `build_runner` for fluau, and do **not** hand-roll a Dart registry.
 * Annotate catalog classes with `@LuaWidget` / `@LuaProperty` / `@LuaCallback` / `@LuaChildren` and implement `LuaWidgetInterface`.
-* Keep a hand-written `catalog.dart` that imports every widget module and has `part 'widget_serializers.g.dart';`. Codegen hardcodes `part of 'catalog.dart';` — a lone widget file without that barrel will not compile against the generated part.
-* Always pass the generated registry entry point into `LuaPlugin` / `LuaPluginView` as `buildWidget`.
-* After adding or changing widgets, regenerate with [`fluau_codegen`](https://pub.dev/packages/fluau_codegen) `--generate` (flags below).
+* Keep a hand-written `catalog.dart` that imports every widget module and has `part 'widget_serializers.g.dart';`. Codegen hardcodes `part of 'catalog.dart';`.
+* Always pass generated `LuaWidgetRegistry.buildFromMap` into `LuaPlugin` / `LuaPluginView` as `buildWidget`.
+* Register Rust UI setup via `SetupOptions.ui_setup: Some(lua_engine::setup_lua_api)`. **Without it, Lua gets an empty `ui` table** and `ui.Text` etc. fail — do not hand-emit JSON as a workaround.
 * Only run `flutter_rust_bridge_codegen generate` when FRB-exposed APIs changed — not for every widget tweak.
-* Register Rust UI setup via `SetupOptions.ui_setup: Some(lua_engine::setup_lua_api)` in the host crate (call `fluau::setup` from Rust at process start — see `fluau-integrate-host`).
 
 Docs: [UI catalog](https://github.com/c4rl2s0n/fluau/blob/main/docs/host/UI_CATALOG.md),
 [When to regenerate](https://github.com/c4rl2s0n/fluau/blob/main/docs/codegen/WHEN_TO_RUN.md).
 
 ## Examples
 
-### Codegen flags and outputs
+### Install
+
+```yaml
+dev_dependencies:
+  fluau_codegen: ^0.1.1
+```
+
+### Generate (default: widgets + capabilities)
 
 ```bash
-dart run fluau_codegen --generate \
-  --input lib/widgets \
+dart run fluau_codegen \
+  --input lib \
   --rust-out rust/src \
   --dart-out lib/widgets \
   --luau-out assets/plugins/_types
 ```
 
-| Flag | Required | Meaning |
-|------|----------|---------|
-| `--input` | yes | Dart catalog directory (annotated widgets) |
-| `--rust-out` | yes | Rust `src` directory |
-| `--dart-out` | yes | Same widgets directory (serializers land next to catalog) |
-| `--luau-out` | no | Defaults to `../../assets/plugins/_types` if omitted |
+`--input` is scanned for `@LuaCapability`. Widgets default to `lib/widgets` when that directory exists (`--widgets-input` to override).
 
-Emits:
+Selective: `dart run fluau_codegen --widgets …` or `--capabilities …`.
 
-* `widget_serializers.g.dart` — `part of 'catalog.dart';` (Dart registry / `buildFromMap`)
-* `lua_engine.rs` — includes `setup_lua_api` for `SetupOptions.ui_setup`
-* `api/lua.rs` — legacy FRB helpers + empty `init_lua`
-* `ui.d.luau` — Luau widget constructor stubs
+Emits: `widget_serializers.g.dart`, `lua_engine.rs` (`setup_lua_api`), `api/lua.rs`, `ui.d.luau`, plus capability `*.g.dart` / `capabilities.d.luau` when present.
 
 ### `catalog.dart` barrel
 
@@ -66,7 +65,7 @@ part 'widget_serializers.g.dart';
 LuaPlugin(
   pluginId: pluginId,
   grants: grants,
-  buildWidget: LuaWidgetRegistry.buildFromMap, // host-generated
+  buildWidget: LuaWidgetRegistry.buildFromMap, // host-generated — never hand-roll
 );
 ```
 

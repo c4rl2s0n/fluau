@@ -11,7 +11,7 @@ The runtime looks up global Lua functions by name:
 | Symbol | Required? | Role |
 |--------|-----------|------|
 | `render()` | Yes (UI sessions) | Return a JSON **string** from `ui.*` constructors — a plain table fails with `render() must return a widget (JSON string from ui.*)` |
-| `on_event(event)` | Optional | Handle UI events; return intents or `{}` |
+| `on_event(event)` | Optional | Handle UI events (`event.type`); return intents or `{}`. Sessions start with a host-sent `{ type = "bootstrap" }` |
 | `flush_state(fields)` | Optional | Apply buffered form fields before `on_event` |
 | `init()` | Optional | Runs once when the session loads |
 | `on_host_result(result)` | Optional | Handle async host results |

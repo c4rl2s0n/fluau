@@ -1,4 +1,4 @@
-/// Capability-only codegen entry (`--generate-capabilities`).
+/// Capability codegen (`--capabilities` / default generate-all).
 
 library;
 
@@ -11,38 +11,16 @@ import 'generators/capability_luau_generator.dart';
 import 'models/capability_info.dart';
 import 'parsers/capability_parser.dart';
 
-Future<void> runCapabilityCodegen(List<String> args) async {
-  String? inputDir;
-  String? luauOut;
-
-  for (var i = 0; i < args.length; i++) {
-    final flag = args[i];
-    if (flag == '--generate-capabilities') continue;
-    if (i + 1 >= args.length) {
-      throw ArgumentError('Missing value for $flag');
-    }
-    final value = args[++i];
-    switch (flag) {
-      case '--input':
-        inputDir = value;
-        break;
-      case '--luau-out':
-        luauOut = value;
-        break;
-      default:
-        throw ArgumentError('Unknown flag: $flag');
-    }
-  }
-
-  if (inputDir == null) {
-    throw ArgumentError(
-      'Usage: --generate-capabilities --input <dir> [--luau-out <dir>]',
-    );
-  }
-
+/// Generate capability Dart `*.g.dart` parts and `capabilities.d.luau`.
+Future<void> generateCapabilities({
+  required String inputDir,
+  String? luauOut,
+}) async {
   final absoluteInput = path.normalize(path.absolute(inputDir));
   final absoluteLuau = path.normalize(
-    path.absolute(luauOut ?? path.join(absoluteInput, '../assets/plugins/_types')),
+    path.absolute(
+      luauOut ?? path.join(absoluteInput, '../assets/plugins/_types'),
+    ),
   );
 
   print('Capability Code Generator');
@@ -64,7 +42,7 @@ Future<void> runCapabilityCodegen(List<String> args) async {
   print('');
 
   if (result.capabilities.isEmpty && result.dtos.isEmpty) {
-    print('Nothing to generate.');
+    print('Nothing to generate for capabilities.');
     return;
   }
 
@@ -82,19 +60,17 @@ Future<void> runCapabilityCodegen(List<String> args) async {
       dto.sourceFile,
       () => CapabilityParseResult(capabilities: [], dtos: []),
     );
-    // Avoid duplicating DTOs when multiple caps share a file.
     if (!entry.dtos.any((d) => d.className == dto.className)) {
       entry.dtos.add(dto);
     }
   }
 
-  // Attach all DTOs referenced from a file's capabilities (same-file only for v1).
   final dartGen = CapabilityDartGenerator();
   for (final entry in byFile.entries) {
     final sourceFile = entry.key;
     final slice = entry.value;
-    // Include every DTO that lives in this same source file.
-    final fileDtos = result.dtos.where((d) => d.sourceFile == sourceFile).toList();
+    final fileDtos =
+        result.dtos.where((d) => d.sourceFile == sourceFile).toList();
     final merged = CapabilityParseResult(
       capabilities: slice.capabilities,
       dtos: fileDtos.isNotEmpty ? fileDtos : slice.dtos,

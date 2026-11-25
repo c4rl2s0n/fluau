@@ -52,11 +52,9 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   integration_test:
     sdk: flutter
-  build_runner: ^2.4.14
-  # Capability `@LuaCapability` → `*.g.dart` via SharedPartBuilder.
+  # Widgets + capabilities: `dart run fluau_codegen` (or `./tool/generate.sh`).
   fluau_codegen:
     path: ../packages/fluau_codegen
-  # Widget/Rust/Luau still: `./tool/generate.sh` (CLI), not build_runner.
 
 # analyzer (via fluau_codegen) wants meta ^1.18.3; Flutter SDK pins 1.18.0.
 dependency_overrides:

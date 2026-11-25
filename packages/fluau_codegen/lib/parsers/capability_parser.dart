@@ -66,7 +66,7 @@ class CapabilityParser {
     return CapabilityParseResult(capabilities: capabilities, dtos: dtos);
   }
 
-  /// Parse a single resolved library (used by build_runner).
+  /// Parse a single resolved library.
   CapabilityParseResult parseLibrary(
     LibraryElement library, {
     String sourceFile = '',

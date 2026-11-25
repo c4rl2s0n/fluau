@@ -1,3 +1,12 @@
+## 0.1.6
+
+- Skills/docs: single `fluau_codegen` CLI (default generate-all; no
+  `build_runner` for fluau), install snippet, empty-`ui` warning, Frb adapter
+  path / bind anti-pattern, bootstrap event, Dart↔crates version pairing, and
+  an end-to-end host checklist.
+- Align with `fluau_codegen` 0.1.1 (CLI-only; drops `build` ^4 conflict with
+  modern `build_runner`).
+
 ## 0.1.5
 
 - Agent skills and host/plugin docs now include the Lua entrypoint contract, a

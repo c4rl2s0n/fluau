@@ -43,9 +43,20 @@ In the example, a `#[frb(init)]` hook runs `ensure_runtime()` during
 `RustLib.init()`, which calls `setup` behind a `Once`. Plugin FRB entry points
 may call the same `ensure` again; it stays idempotent.
 
-`LuaPluginBridge.bind(FrbLuaPluginBridge())` installs the stamped Dart adapter
-after init. `LuaPluginBridge.instance` is **not** a stub: unbound it throws
-`StateError`; after bind it forwards to FRB.
+`dart run fluau:bootstrap` stamps `lib/fluau_bridge.g.dart` (override via
+`fluau.yaml` `dart.bridge_adapter`). Import
+`package:<pubspec.name>/fluau_bridge.g.dart` and bind **that** adapter:
+
+`LuaPluginBridge.bind(FrbLuaPluginBridge())`. Never
+`bind(LuaPluginBridge.instance)` — that reads the unbound singleton and throws
+`StateError`. After a correct bind, `instance` forwards to FRB.
+
+Without `ui_setup`, Lua gets an **empty** `ui` table — run
+[`fluau_codegen`](../codegen/WHEN_TO_RUN.md) and pass
+`ui_setup: Some(lua_engine::setup_lua_api)`.
+
+**Versions:** Dart `fluau: ^0.1.6` with crates.io `fluau = "0.1"` (currently
+0.1.0) is supported — patch numbers need not match within `0.1`.
 
 <!-- fluau:include-begin id="bootstrap-bind" -->
 ### Bootstrap and bind
@@ -62,8 +73,9 @@ flutter_rust_bridge_codegen generate
 Then:
 
 ```dart
+WidgetsFlutterBinding.ensureInitialized();
 await RustLib.init(); // runs #[frb(init)] → fluau::setup on the Rust side
-LuaPluginBridge.bind(FrbLuaPluginBridge()); // required stamped adapter
+LuaPluginBridge.bind(FrbLuaPluginBridge()); // stamped lib/fluau_bridge.g.dart
 await PluginRegistryLoader.registerPackages([...]);
 // LuaPlugin(pluginId: '...', buildWidget: YourRegistry.buildFromMap, ...)
 ```
