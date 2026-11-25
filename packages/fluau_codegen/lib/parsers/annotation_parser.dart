@@ -266,6 +266,7 @@ class AnnotationParser {
     return PropertyInfo(
       name: luaNameOverride ?? rawName,
       dartParamName: rawName,
+      isNamed: param.isNamed,
       dartType: dartType,
       rustType: rustType,
       required: required,

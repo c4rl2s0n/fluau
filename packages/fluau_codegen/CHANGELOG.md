@@ -1,3 +1,8 @@
+## 0.1.4
+
+- Dart `fromJson` emits positional constructor arguments when the Dart param is
+  positional (Lua/JSON keys remain named).
+
 ## 0.1.3
 
 - Constructor-param Lua API: generative ctor parameters are the snapshot surface;

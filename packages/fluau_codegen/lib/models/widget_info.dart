@@ -83,6 +83,10 @@ class PropertyInfo {
   /// Dart parameter name for the constructor call.
   final String dartParamName;
 
+  /// Whether this is a named Dart parameter (`{this.x}`) vs positional (`this.x`).
+  /// Lua/JSON always use [name] as the key regardless.
+  final bool isNamed;
+
   final String dartType;
   final String rustType;
 
@@ -120,6 +124,7 @@ class PropertyInfo {
   const PropertyInfo({
     required this.name,
     required this.dartParamName,
+    this.isNamed = true,
     required this.dartType,
     required this.rustType,
     this.required = false,

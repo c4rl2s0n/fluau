@@ -150,7 +150,11 @@ class DartSerializerGenerator {
 
       for (final prop in ctor.parameters) {
         final value = _generatePropertyValue(prop, luaClass, allClasses);
-        buffer.writeln('      ${prop.dartParamName}: $value,');
+        if (prop.isNamed) {
+          buffer.writeln('      ${prop.dartParamName}: $value,');
+        } else {
+          buffer.writeln('      $value,');
+        }
       }
 
       buffer.writeln('    );');

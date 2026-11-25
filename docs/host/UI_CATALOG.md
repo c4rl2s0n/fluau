@@ -45,7 +45,7 @@ are all exposed; no `@LuaConstructor` required.
 
 ```yaml
 dev_dependencies:
-  fluau_codegen: ^0.1.3
+  fluau_codegen: ^0.1.4
 ```
 
 ```bash

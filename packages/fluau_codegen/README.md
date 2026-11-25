@@ -9,7 +9,7 @@ Rust UI builders, and Luau stubs aligned.
 
 ```yaml
 dev_dependencies:
-  fluau_codegen: ^0.1.3
+  fluau_codegen: ^0.1.4
 ```
 
 ## Default: generate everything
