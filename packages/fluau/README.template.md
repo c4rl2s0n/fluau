@@ -13,7 +13,7 @@ Full monorepo docs (example walkthrough, architecture): see the
 
 ```yaml
 dependencies:
-  fluau: ^0.1.3
+  fluau: ^0.1.4
 ```
 
 Also depend on the Rust crate [`fluau`](https://crates.io/crates/fluau)

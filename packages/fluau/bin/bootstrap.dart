@@ -5,7 +5,8 @@
 // create FRB from scratch.
 //
 // fluau.yaml is optional — built-in defaults apply when the file is missing.
-// Create one to override stamp paths or set dart.frb_plugin_import.
+// Create one to override stamp paths or dart.frb_plugin_import.
+// dart.frb_plugin_import defaults to package:<pubspec.name>/src/rust/api/<stem>.dart.
 //
 // Usage (from an app with fluau dependency):
 //   dart run fluau:bootstrap
@@ -22,20 +23,19 @@ import 'dart:io';
 import 'package:yaml/yaml.dart';
 
 const _defaultCrateRoot = 'rust/';
-const _defaultApiModule = 'src/api/plugin.rs';
+const _defaultApiModule = 'src/api/fluau.rs';
 const _defaultBridgeAdapter = 'lib/fluau_bridge.g.dart';
-const _defaultFrbPluginImport = 'package:app/src/rust/api/plugin.dart';
 const _defaultFrbVersion = '2.13.0';
+const _fluauCargoDep = 'fluau = "0.1"';
 
 final _starterYaml = '''
 # Optional — omit fluau.yaml to use these defaults.
+# frb_plugin_import is inferred from pubspec.yaml name when omitted.
 rust:
   crate_root: $_defaultCrateRoot
   api_module: $_defaultApiModule
 dart:
   bridge_adapter: $_defaultBridgeAdapter
-  # Change to your FRB-generated plugin API import:
-  frb_plugin_import: $_defaultFrbPluginImport
 frb_version: "$_defaultFrbVersion"
 '''.trim();
 
@@ -55,11 +55,12 @@ void main(List<String> args) async {
         '  rust.crate_root:         $_defaultCrateRoot\n'
         '  rust.api_module:         $_defaultApiModule\n'
         '  dart.bridge_adapter:     $_defaultBridgeAdapter\n'
-        '  dart.frb_plugin_import:  $_defaultFrbPluginImport\n'
+        '  dart.frb_plugin_import:  package:<pubspec.name>/src/rust/api/<stem>.dart\n'
         '  frb_version:             $_defaultFrbVersion\n'
         '\n'
-        'Create fluau.yaml to override paths or set frb_plugin_import to your\n'
-        'app package. Example starter:\n'
+        'Also: ensures pub mod <stem> in api/mod.rs and fluau in Cargo.toml.\n'
+        '\n'
+        'Create fluau.yaml to override paths. Example starter:\n'
         '\n'
         '$_starterYaml',
       );
@@ -76,9 +77,9 @@ void main(List<String> args) async {
 
   if (usedDefaultsOnly) {
     stderr.writeln(
-      'No $configPath — using built-in defaults.\n'
-      'Create fluau.yaml when stamp paths or frb_plugin_import differ '
-      '(default import is almost never correct for a real app):\n'
+      'No $configPath — using built-in defaults '
+      '(frb_plugin_import inferred from pubspec.yaml).\n'
+      'Create fluau.yaml only when stamp paths differ:\n'
       '\n'
       '$_starterYaml\n',
     );
@@ -96,23 +97,33 @@ void main(List<String> args) async {
       _join(root, (rust['crate_root'] as String?) ?? _defaultCrateRoot);
   final apiModuleRel = (rust['api_module'] as String?) ?? _defaultApiModule;
   final apiModule = _join(crateRoot, apiModuleRel);
+  final moduleStem = _moduleStem(apiModuleRel);
   final bridgeRel =
       (dart['bridge_adapter'] as String?) ?? _defaultBridgeAdapter;
   final bridgePath = _join(root, bridgeRel);
-  final frbImport =
-      (dart['frb_plugin_import'] as String?) ?? _defaultFrbPluginImport;
   final frbVersion = frbVersionRaw ?? _defaultFrbVersion;
 
-  if (frbImport == _defaultFrbPluginImport) {
-    stderr.writeln(
-      'Warning: dart.frb_plugin_import is the placeholder '
-      '$_defaultFrbPluginImport — set it in fluau.yaml to your FRB '
-      'plugin API import before using the stamped adapter.',
-    );
+  final configuredImport = dart['frb_plugin_import'] as String?;
+  final String frbImport;
+  if (configuredImport != null && configuredImport.isNotEmpty) {
+    frbImport = configuredImport;
+  } else {
+    final packageName = _readPubspecPackageName(root);
+    if (packageName == null) {
+      stderr.writeln(
+        'Warning: could not read package name from pubspec.yaml — '
+        'set dart.frb_plugin_import in fluau.yaml '
+        '(expected package:<name>/src/rust/api/$moduleStem.dart).',
+      );
+      frbImport = 'package:app/src/rust/api/$moduleStem.dart';
+    } else {
+      frbImport = 'package:$packageName/src/rust/api/$moduleStem.dart';
+    }
   }
 
   _ensureCargoDep(crateRoot);
   _stampRustApiIfMissing(apiModule);
+  _ensureApiModDecl(apiModule, moduleStem);
   _stampDartAdapter(bridgePath, frbImport);
 
   stdout.writeln('Stamped:');
@@ -150,6 +161,27 @@ String _join(String a, String b) {
   return '$left${Platform.pathSeparator}$right'.replaceAll('/', Platform.pathSeparator);
 }
 
+/// Basename without extension: `src/api/fluau.rs` → `fluau`.
+String _moduleStem(String apiModuleRel) {
+  final normalized = apiModuleRel.replaceAll('\\', '/');
+  final base = normalized.split('/').last;
+  final dot = base.lastIndexOf('.');
+  return dot > 0 ? base.substring(0, dot) : base;
+}
+
+String? _readPubspecPackageName(String root) {
+  final pubspec = File(_join(root, 'pubspec.yaml'));
+  if (!pubspec.existsSync()) return null;
+  try {
+    final doc = loadYaml(pubspec.readAsStringSync());
+    if (doc is YamlMap) {
+      final name = doc['name'];
+      if (name is String && name.isNotEmpty) return name;
+    }
+  } catch (_) {}
+  return null;
+}
+
 void _ensureCargoDep(String crateRoot) {
   final cargo = File(_join(crateRoot, 'Cargo.toml'));
   if (!cargo.existsSync()) {
@@ -157,13 +189,25 @@ void _ensureCargoDep(String crateRoot) {
     return;
   }
   final text = cargo.readAsStringSync();
-  if (!text.contains('fluau')) {
-    stderr.writeln(
-      'Warning: $cargo does not list fluau. Add:\n'
-      '  fluau = "0.1"\n'
-      '  # or path: fluau = { path = "../crates/fluau", version = "0.1.0" }',
-    );
+  // Any `fluau =` dependency key (dependencies or build-dependencies).
+  if (RegExp(r'^\s*fluau\s*=', multiLine: true).hasMatch(text)) {
+    stdout.writeln('Cargo.toml already lists fluau — leaving in place');
+    return;
   }
+  final depsHeader = RegExp(r'^\[dependencies\]\s*$', multiLine: true);
+  final match = depsHeader.firstMatch(text);
+  if (match == null) {
+    stderr.writeln(
+      'Warning: no [dependencies] section in $cargo — add manually:\n'
+      '  $_fluauCargoDep',
+    );
+    return;
+  }
+  final insertAt = match.end;
+  final updated =
+      '${text.substring(0, insertAt)}\n$_fluauCargoDep${text.substring(insertAt)}';
+  cargo.writeAsStringSync(updated);
+  stdout.writeln('Added $_fluauCargoDep to $cargo');
 }
 
 void _stampRustApiIfMissing(String apiModule) {
@@ -175,6 +219,42 @@ void _stampRustApiIfMissing(String apiModule) {
   file.parent.createSync(recursive: true);
   file.writeAsStringSync(_rustApiTemplate);
   stdout.writeln('Created Rust api module: $apiModule');
+}
+
+/// Ensure `pub mod <stem>;` in the sibling `api/mod.rs` when api_module is under `api/`.
+void _ensureApiModDecl(String apiModule, String stem) {
+  final normalized = apiModule.replaceAll('\\', '/');
+  final apiDirMarker = '/api/';
+  final idx = normalized.lastIndexOf(apiDirMarker);
+  if (idx < 0) {
+    stdout.writeln(
+      'Note: api_module is not under …/api/ — skip mod.rs registration',
+    );
+    return;
+  }
+  final apiDir = normalized.substring(0, idx + apiDirMarker.length - 1);
+  final modRs = File('$apiDir/mod.rs'.replaceAll('/', Platform.pathSeparator));
+  final decl = 'pub mod $stem;';
+  final already = RegExp(
+    r'(?:pub\s+)?mod\s+' + RegExp.escape(stem) + r'\s*;',
+  );
+
+  if (modRs.existsSync()) {
+    final text = modRs.readAsStringSync();
+    if (already.hasMatch(text)) {
+      stdout.writeln('api/mod.rs already declares mod $stem — leaving in place');
+      return;
+    }
+    final trimmed = text.trimRight();
+    final next = trimmed.isEmpty ? '$decl\n' : '$trimmed\n$decl\n';
+    modRs.writeAsStringSync(next);
+    stdout.writeln('Registered `$decl` in ${modRs.path}');
+    return;
+  }
+
+  modRs.parent.createSync(recursive: true);
+  modRs.writeAsStringSync('$decl\n');
+  stdout.writeln('Created ${modRs.path} with `$decl`');
 }
 
 void _stampDartAdapter(String bridgePath, String frbImport) {

@@ -13,8 +13,8 @@ description: >-
 * Always call `LuaPluginBridge.bind(...)` after `RustLib.init()` (or your bridge init).
 * Always pass a host-owned `buildWidget` into `LuaPlugin` / `LuaPluginView` — fluau ships **no** default UI catalog.
 * Always persist permission decisions with a `PluginGrantStore` (memory is ephemeral; prefer a custom or file store for real apps).
-* Use `dart run fluau:bootstrap` to stamp the FRB façade + Dart adapter (`fluau.yaml` is optional; add one to set `frb_plugin_import` / paths). Then run `flutter_rust_bridge_codegen generate` when FRB APIs change.
-* Rust: depend on crates.io `fluau` (default `runtime`); use `stub-gen` in `build-dependencies` for `host.d.luau` emission.
+* Use `dart run fluau:bootstrap` to stamp `src/api/fluau.rs`, register it in `api/mod.rs`, add `fluau` to Cargo.toml if missing, and stamp the Dart adapter (import inferred from `pubspec.yaml`). `fluau.yaml` is optional for path overrides. Then run `flutter_rust_bridge_codegen generate` when FRB APIs change.
+* For `build.rs` stub emission, add crates.io `fluau` with `stub-gen` in `build-dependencies`.
 
 Docs: [Integration](https://github.com/c4rl2s0n/fluau/blob/main/docs/host/INTEGRATION.md),
 [fluau.yaml](https://github.com/c4rl2s0n/fluau/blob/main/docs/host/FLUAU_YAML.md),

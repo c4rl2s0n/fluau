@@ -22,10 +22,12 @@ and to `frb_version` in [`fluau.yaml`](FLUAU_YAML.md) when you set one.
 
 ## Steps
 
-1. Add Cargo deps on `fluau` (default `runtime` feature). For `build.rs` stub
-   generation: `fluau` with `default-features = false, features = ["stub-gen"]`.
-2. Optionally create [`fluau.yaml`](FLUAU_YAML.md) when stamp paths or
-   `frb_plugin_import` differ from bootstrap defaults.
+1. Add the Dart `fluau` package. Bootstrap adds `fluau = "0.1"` to
+   `Cargo.toml` when missing (default `runtime` feature). For `build.rs` stub
+   generation, also depend on `fluau` with
+   `default-features = false, features = ["stub-gen"]`.
+2. Optionally create [`fluau.yaml`](FLUAU_YAML.md) when stamp paths differ from
+   bootstrap defaults (`src/api/fluau.rs`, inferred FRB import).
 3. Implement HostAPIs and call `fluau::setup(...)` once at process start
    (see `example/rust/src/demo_host`).
 4. Stamp glue and bind (see below).
@@ -34,7 +36,7 @@ and to `frb_version` in [`fluau.yaml`](FLUAU_YAML.md) when you set one.
 ### Bootstrap and bind
 
 After FRB works in your app, stamp glue (`fluau.yaml` is optional; add one to
-override stamp paths or set `frb_plugin_import`):
+override stamp paths):
 
 ```bash
 dart run fluau:bootstrap

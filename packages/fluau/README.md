@@ -25,7 +25,7 @@ on crates.io (and typically `fluau_codegen` on pub.dev for UI/capability generat
 
 ```yaml
 dependencies:
-  fluau: ^0.1.3
+  fluau: ^0.1.4
 ```
 
 Also depend on the Rust crate [`fluau`](https://crates.io/crates/fluau)
@@ -47,7 +47,7 @@ Use `--all` to pull skills from every dependency that ships them. Skills land un
 ### Bootstrap and bind
 
 After FRB works in your app, stamp glue (`fluau.yaml` is optional; add one to
-override stamp paths or set `frb_plugin_import`):
+override stamp paths):
 
 ```bash
 dart run fluau:bootstrap

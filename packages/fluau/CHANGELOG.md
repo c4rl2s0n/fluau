@@ -1,3 +1,10 @@
+## 0.1.4
+
+- Bootstrap infers `frb_plugin_import` from `pubspec.yaml` and defaults the Rust
+  façade to `src/api/fluau.rs`.
+- Registers `pub mod <stem>;` in `api/mod.rs` and adds `fluau = "0.1"` to
+  `Cargo.toml` when missing.
+
 ## 0.1.3
 
 - `fluau.yaml` is optional for `dart run fluau:bootstrap` (built-in defaults when

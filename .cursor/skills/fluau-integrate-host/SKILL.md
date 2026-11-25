@@ -10,6 +10,7 @@ description: >-
 1. Read [docs/host/INTEGRATION.md](../../../docs/host/INTEGRATION.md).
 2. Also follow [docs/host/PLUGIN_PERMISSIONS.md](../../../docs/host/PLUGIN_PERMISSIONS.md) and
    [docs/host/UI_CATALOG.md](../../../docs/host/UI_CATALOG.md).
-3. Run `dart run fluau:bootstrap` (`fluau.yaml` is optional). Override paths /
-   `frb_plugin_import` via [docs/host/FLUAU_YAML.md](../../../docs/host/FLUAU_YAML.md);
-   example: [example/fluau.yaml](../../../example/fluau.yaml).
+3. Run `dart run fluau:bootstrap` (`fluau.yaml` is optional; defaults to
+   `src/api/fluau.rs` + inferred package import). See
+   [docs/host/FLUAU_YAML.md](../../../docs/host/FLUAU_YAML.md);
+   example still uses `plugin.rs`: [example/fluau.yaml](../../../example/fluau.yaml).
