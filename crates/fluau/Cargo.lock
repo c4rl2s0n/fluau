@@ -64,24 +64,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48"
 
 [[package]]
-name = "host_api_macros"
+name = "fluau"
 version = "0.1.0"
 dependencies = [
- "host_api_meta",
+ "fluau_macros",
+ "lazy_static",
+ "mlua",
  "proc-macro2",
  "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "host_api_meta"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
+ "serde",
+ "serde_json",
  "syn 2.0.119",
  "thiserror",
  "walkdir",
+]
+
+[[package]]
+name = "fluau_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -119,17 +123,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "224399e74b87b5f3557511d98dff8b14089b3dadafcab6bb93eab67d3aace965"
 dependencies = [
  "scopeguard",
-]
-
-[[package]]
-name = "lua_plugin_core"
-version = "0.1.0"
-dependencies = [
- "host_api_macros",
- "lazy_static",
- "mlua",
- "serde",
- "serde_json",
 ]
 
 [[package]]

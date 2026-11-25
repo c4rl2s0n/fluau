@@ -10,7 +10,7 @@ use syn::{
 use thiserror::Error;
 use walkdir::WalkDir;
 
-use crate::model::{
+use super::model::{
     HostApiModel, HostField, HostMethod, HostModule, HostTypeDef, HostUserDataDef, LuauType,
 };
 

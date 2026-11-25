@@ -8,7 +8,7 @@ logging sinks, and similar.
 
 1. Implement annotated host traits / UserData in the **app** crate (example:
    `example/rust/src/demo_host/`) with `#[host_module(...)]`.
-2. Register via `lua_plugin_core::setup(SetupOptions { host_apis: … })` — core
+2. Register via `fluau::setup(SetupOptions { host_apis: … })` — core
    ships an empty registry.
 3. Call `PermissionGate::require` / `require_with` on every privileged path;
    register constraint checkers at setup.

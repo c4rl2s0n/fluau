@@ -1,11 +1,11 @@
 //! `host.crypto` module — trait contract + Host impl.
 
-use host_api_macros::host_module;
+use fluau::host_module;
 use serde_json::{json, Value as JsonValue};
 
 use super::crypto;
-use lua_plugin_core::Host;
-use lua_plugin_core::PermissionGate;
+use fluau::Host;
+use fluau::PermissionGate;
 use super::types::{
     CryptoBase64DecodeOpts, CryptoBase64DecodeResult, CryptoBase64EncodeResult, CryptoBcryptOpts,
     CryptoBcryptResult, CryptoBytesInput, CryptoDigestResult, CryptoModPowOpts, CryptoModPowResult,

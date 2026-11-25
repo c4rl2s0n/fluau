@@ -16,8 +16,10 @@ dependencies:
   fluau: ^0.1.0
 ```
 
-Also depend on the Rust runtime from the monorepo (`lua_plugin_core`, git/path
-until published on crates.io).
+Also depend on the Rust crate [`fluau`](https://crates.io/crates/fluau)
+(default features for runtime; `stub-gen` in `build-dependencies`). Use
+[`fluau_codegen`](https://pub.dev/packages/fluau_codegen) to regenerate UI/capability
+bindings.
 
 {{include:docs/host/INTEGRATION.md#bootstrap-bind}}
 

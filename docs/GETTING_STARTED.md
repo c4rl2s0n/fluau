@@ -14,8 +14,8 @@ Use [flutter_rust_bridge](https://cjycode.com/flutter_rust_bridge/) (the example
 pins **2.13.0**) or another bridge you already maintain. Follow FRB’s own docs
 to bootstrap an app from zero; then come back here to add fluau.
 
-You also need the Rust runtime (`lua_plugin_core` in this repo — git/path until
-published on crates.io as part of the fluau family).
+You also need the Rust runtime crate [`fluau`](https://crates.io/crates/fluau)
+on crates.io (and typically `fluau_codegen` on pub.dev for UI/capability generation).
 <!-- fluau:include-end id="prerequisite" -->
 
 <!-- fluau:include-begin id="try-example" -->

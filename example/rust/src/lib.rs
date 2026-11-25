@@ -5,7 +5,7 @@ pub mod lua_engine;
 pub mod state;
 pub mod callbacks;
 
-pub use lua_plugin_core::{
+pub use fluau::{
     json_util, registry, session, Host, HostApiEntry, PermissionGate, PluginGrants,
     PluginManifest, PluginModule, PluginPermissions, PluginResponse, SetupOptions, setup,
 };

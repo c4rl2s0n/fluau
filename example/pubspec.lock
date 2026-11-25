@@ -207,11 +207,11 @@ packages:
       path: "../packages/fluau"
       relative: true
     source: path
-    version: "0.1.0"
+    version: "0.1.1"
   fluau_codegen:
     dependency: "direct dev"
     description:
-      path: "../tool/codegen"
+      path: "../packages/fluau_codegen"
       relative: true
     source: path
     version: "0.1.0"

@@ -334,6 +334,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "fluau"
+version = "0.1.0"
+dependencies = [
+ "fluau_macros",
+ "lazy_static",
+ "mlua",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn 2.0.119",
+ "thiserror",
+ "walkdir",
+]
+
+[[package]]
+name = "fluau_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "flutter_rust_bridge"
 version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -531,27 +556,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
-name = "host_api_macros"
-version = "0.1.0"
-dependencies = [
- "host_api_meta",
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "host_api_meta"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
- "thiserror",
- "walkdir",
-]
-
-[[package]]
 name = "icu_collections"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -722,17 +726,6 @@ name = "log"
 version = "0.4.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
-
-[[package]]
-name = "lua_plugin_core"
-version = "0.1.0"
-dependencies = [
- "host_api_macros",
- "lazy_static",
- "mlua",
- "serde",
- "serde_json",
-]
 
 [[package]]
 name = "luau0-src"
@@ -1026,13 +1019,11 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "bcrypt",
+ "fluau",
  "flutter_rust_bridge",
  "getrandom 0.2.17",
  "hex",
- "host_api_macros",
- "host_api_meta",
  "lazy_static",
- "lua_plugin_core",
  "md-5",
  "mlua",
  "num-bigint",

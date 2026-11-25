@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use host_api_macros::HostType;
+use fluau::HostType;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 

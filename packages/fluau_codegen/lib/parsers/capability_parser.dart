@@ -136,11 +136,8 @@ class CapabilityParser {
       if (typeName == 'LuaCapability') {
         capabilityId = constant?.getField('id')?.toStringValue();
         // Positional: first field of the annotation object.
-        if (capabilityId == null) {
-          // analyzer may store positional as field `id` from constructor.
-          final fields = constant?.type?.element;
-          capabilityId = constant?.getField('id')?.toStringValue();
-        }
+        // analyzer may store positional as field `id` from constructor.
+        capabilityId ??= constant?.getField('id')?.toStringValue();
         break;
       }
     }

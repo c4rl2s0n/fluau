@@ -8,7 +8,7 @@ FRB from zero is covered by the
 
 | Piece | Role |
 |-------|------|
-| Rust `lua_plugin_core` (+ macros) | Session, sandbox, PermissionGate, empty HostApi registry |
+| Rust [`fluau`](https://crates.io/crates/fluau) (+ `fluau_macros`) | Session, sandbox, PermissionGate, empty HostApi registry; `stub-gen` for build.rs |
 | Dart `fluau` | Bridge interface, permission store, YAML loader, annotations |
 | Your app | FRB, HostAPIs, UI catalog, `fluau.yaml`, stamped glue |
 
@@ -22,10 +22,11 @@ and the example pin: **2.13.0**.
 
 ## Steps
 
-1. Add Cargo deps on `lua_plugin_core` (+ macros).
+1. Add Cargo deps on `fluau` (default `runtime` feature). For `build.rs` stub
+   generation: `fluau` with `default-features = false, features = ["stub-gen"]`.
 2. Create `fluau.yaml` (paths for stamped Rust API module + Dart adapter).
-3. Implement HostAPIs and call `lua_plugin_core::setup(...)` once at process
-   start (see `example/rust/src/demo_host`).
+3. Implement HostAPIs and call `fluau::setup(...)` once at process start
+   (see `example/rust/src/demo_host`).
 4. Stamp glue and bind (see below).
 
 <!-- fluau:include-begin id="bootstrap-bind" -->

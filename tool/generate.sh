@@ -18,9 +18,11 @@ cd "$ROOT"
 EXAMPLE="$ROOT/example"
 WIDGETS="$EXAMPLE/lib/widgets"
 
+CODEGEN="$ROOT/packages/fluau_codegen"
+
 echo "==> Widget codegen (Dart catalog → serializers, lua_engine.rs, ui.d.luau)"
 (
-  cd tool/codegen
+  cd "$CODEGEN"
   dart pub get
   dart run bin/fluau_codegen.dart --generate \
     --input "$WIDGETS" \
@@ -37,7 +39,7 @@ echo "==> Capability Dart parts (build_runner → example/lib/*.g.dart)"
 
 echo "==> Capability Luau stubs (CLI → capabilities.d.luau)"
 (
-  cd tool/codegen
+  cd "$CODEGEN"
   dart pub get
   dart run bin/fluau_codegen.dart --generate-capabilities \
     --input "$EXAMPLE/lib" \

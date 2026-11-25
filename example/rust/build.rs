@@ -22,7 +22,7 @@ fn main() {
         );
     }
 
-    let stubs = match host_api_meta::generate_luau_stubs(&host_src) {
+    let stubs = match fluau::generate_luau_stubs(&host_src) {
         Ok(s) => s,
         Err(e) => {
             println!("cargo:warning=host_api stub generation failed: {e}");

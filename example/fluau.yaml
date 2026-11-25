@@ -4,7 +4,7 @@
 
 rust:
   crate_root: rust/
-  # Stamped #[frb] forward module (thin façade over lua_plugin_core).
+  # Stamped #[frb] forward module (thin façade over fluau).
   api_module: src/api/plugin.rs
   # Path (from crate_root) to demo HostAPI sources for Luau stub emission.
   host_apis: src/demo_host

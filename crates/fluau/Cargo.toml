@@ -1,0 +1,47 @@
+[package]
+name = "fluau"
+version = "0.1.0"
+edition = "2021"
+description = "Sandboxed Luau plugin runtime for Flutter hosts (tools only — no bundled HostAPIs or UI catalog)"
+license = "MIT"
+repository = "https://github.com/c4rl2s0n/fluau"
+homepage = "https://github.com/c4rl2s0n/fluau"
+readme = "README.md"
+keywords = ["flutter", "lua", "luau", "plugins", "sandbox"]
+categories = ["api-bindings"]
+exclude = ["Cargo.lock"]
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default = ["runtime"]
+# Full plugin runtime (mlua + host macros). Used by the Flutter host's Rust crate.
+runtime = [
+    "dep:mlua",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:lazy_static",
+    "dep:fluau_macros",
+]
+# Luau host stub generation for build.rs (no mlua).
+stub-gen = [
+    "dep:syn",
+    "dep:quote",
+    "dep:proc-macro2",
+    "dep:walkdir",
+    "dep:thiserror",
+]
+
+[dependencies]
+mlua = { version = "0.10", features = ["luau", "serialize", "send"], optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+lazy_static = { version = "1.4", optional = true }
+fluau_macros = { path = "../fluau_macros", version = "0.1.0", optional = true }
+
+syn = { version = "2", features = ["full", "parsing", "extra-traits"], optional = true }
+quote = { version = "1", optional = true }
+proc-macro2 = { version = "1", optional = true }
+walkdir = { version = "2", optional = true }
+thiserror = { version = "2", optional = true }

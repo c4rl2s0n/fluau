@@ -18,10 +18,11 @@ repo also holds the example host and Rust runtime.
 
 | Path | Role |
 |------|------|
-| `packages/fluau` | Dart tools: bridge, permission store, loader, annotations (`dart run fluau:bootstrap`) |
-| `crates/lua_plugin_core` | Rust runtime (git/path until crates.io under the fluau family) |
+| `packages/fluau` | Dart tools on [pub.dev](https://pub.dev/packages/fluau) (`dart run fluau:bootstrap`) |
+| `packages/fluau_codegen` | Widget/capability generators on [pub.dev](https://pub.dev/packages/fluau_codegen) |
+| `crates/fluau` / `fluau_macros` | Rust runtime on [crates.io](https://crates.io/crates/fluau) |
 | `example/` | Runnable host with demo HostAPIs and a sample UI catalog |
-| `tool/` | Codegen + `render_readmes.dart` / `generate.sh` |
+| `tool/` | `generate.sh`, `render_readmes.dart`, `publish_crates.sh` |
 
 ## Docs
 

@@ -1,8 +1,8 @@
 //! FRB API for plugin registry, sessions, host-backed events, and capabilities.
 //!
-//! Thin façade over `lua_plugin_core` — stamped by bootstrap in packaged apps.
+//! Thin façade over `fluau` — stamped by bootstrap in packaged apps.
 
-use lua_plugin_core::{
+use fluau::{
     self as core,
     HostApiPermission as RegistryHostApiPermission, PluginGrants as RegistryGrants,
     PluginManifest as RegistryManifest, PluginModule as RegistryModule,

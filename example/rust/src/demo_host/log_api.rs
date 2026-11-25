@@ -1,9 +1,9 @@
 //! `host.log` module — trait contract + Host impl.
 
-use host_api_macros::host_module;
+use fluau::host_module;
 
-use lua_plugin_core::Host;
-use lua_plugin_core::PermissionGate;
+use fluau::Host;
+use fluau::PermissionGate;
 
 #[host_module(
     path = "log",

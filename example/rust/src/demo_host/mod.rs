@@ -1,4 +1,4 @@
-//! Example HostAPIs and intent handlers (not part of lua_plugin_core).
+//! Example HostAPIs and intent handlers (app-owned (not part of the fluau crate)).
 
 pub mod crypto;
 pub mod crypto_api;
@@ -10,7 +10,7 @@ pub mod http_client;
 pub mod log_api;
 pub mod types;
 
-use lua_plugin_core::{
+use fluau::{
     Host, HostApiEntry, IntentOutcome, PermissionGate, PermissionUse, SessionGrants,
     SetupOptions, set_session_cleanup, set_session_prepare, setup,
 };

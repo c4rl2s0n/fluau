@@ -1,0 +1,19 @@
+[package]
+name = "fluau_macros"
+version = "0.1.0"
+edition = "2021"
+description = "Proc-macros for fluau host APIs (#[host_module], HostType, HostUserData)"
+license = "MIT"
+repository = "https://github.com/c4rl2s0n/fluau"
+homepage = "https://github.com/c4rl2s0n/fluau"
+readme = "README.md"
+keywords = ["flutter", "lua", "luau", "proc-macro"]
+categories = ["development-tools::procedural-macro-helpers"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2", features = ["full", "parsing", "extra-traits"] }
+quote = "1"
+proc-macro2 = "1"

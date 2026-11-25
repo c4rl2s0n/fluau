@@ -3,12 +3,12 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use host_api_macros::{host_module, host_userdata, HostUserData};
+use fluau::{host_module, host_userdata, HostUserData};
 use serde_json::{json, Map, Value as JsonValue};
 
-use lua_plugin_core::Host;
+use fluau::Host;
 use super::http_client::{self, HttpClient as HttpClientState};
-use lua_plugin_core::{PermissionGate, PermissionUse};
+use fluau::{PermissionGate, PermissionUse};
 use super::types::{HttpRequestOpts, HttpResponse};
 
 #[host_module(

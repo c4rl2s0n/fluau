@@ -99,10 +99,11 @@ void _ensureCargoDep(String crateRoot) {
     return;
   }
   final text = cargo.readAsStringSync();
-  if (!text.contains('lua_plugin_core')) {
+  if (!text.contains('fluau')) {
     stderr.writeln(
-      'Warning: $cargo does not list lua_plugin_core. Add:\n'
-      '  lua_plugin_core = { path = "../crates/lua_plugin_core" }',
+      'Warning: $cargo does not list fluau. Add:\n'
+      '  fluau = "0.1"\n'
+      '  # or path: fluau = { path = "../crates/fluau", version = "0.1.0" }',
     );
   }
 }
@@ -134,10 +135,10 @@ void _stampDartAdapter(String bridgePath, String frbImport) {
   stdout.writeln('Wrote Dart adapter: $bridgePath');
 }
 
-const _rustApiTemplate = r'''//! Stamped FRB façade — forwards to lua_plugin_core.
+const _rustApiTemplate = r'''//! Stamped FRB façade — forwards to fluau.
 //! Customize: call your app `setup()` from init; keep DTOs FRB-compatible.
 
-use lua_plugin_core::{
+use fluau::{
     self as core,
     HostApiPermission as RegistryHostApiPermission, PluginGrants as RegistryGrants,
     PluginManifest as RegistryManifest, PluginModule as RegistryModule,
