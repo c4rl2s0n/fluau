@@ -22,6 +22,8 @@ GENERATED_PATHS=(
   example/rust/src/lua_engine.rs
   example/rust/src/api/lua.rs
   example/lib/vpn_provider.g.dart
+  README.md
+  packages/fluau/README.md
 )
 
 echo "==> Regenerating…"

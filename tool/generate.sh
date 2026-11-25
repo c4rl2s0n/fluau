@@ -50,6 +50,9 @@ echo "==> Host stubs (Cargo build.rs → host.d.luau)"
   cargo build -q
 )
 
+echo "==> READMEs (templates + doc includes)"
+dart run tool/render_readmes.dart
+
 echo ""
 echo "Generated / refreshed:"
 echo "  example/assets/plugins/_types/ui.d.luau"
@@ -58,9 +61,12 @@ echo "  example/assets/plugins/_types/capabilities.d.luau"
 echo "  example/lib/widgets/widget_serializers.g.dart"
 echo "  example/rust/src/lua_engine.rs (+ api/lua.rs)"
 echo "  example/lib/*.g.dart (via build_runner)"
+echo "  README.md"
+echo "  packages/fluau/README.md"
 echo ""
 echo "Hand-maintained (not touched): example/assets/plugins/_types/plugin.d.luau"
 echo "Capability-only Dart refresh: cd example && dart run build_runner build"
+echo "README-only refresh: dart run tool/render_readmes.dart"
 echo "If you changed flutter_rust_bridge APIs, also run: flutter_rust_bridge_codegen generate"
 echo "Bootstrap FRB/Dart adapter: cd example && dart run ../packages/fluau/bin/bootstrap.dart"
 echo "Done."

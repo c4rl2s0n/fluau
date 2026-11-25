@@ -34,7 +34,7 @@ flowchart TB
 ```
 
 **Flutter** owns presentation, package discovery from assets, session
-orchestration, grant persistence, and the UI catalog. It turns JSON UI snapshots
+orchestration, permission persistence, and the UI catalog. It turns JSON UI snapshots
 into real widgets and routes user actions back as data.
 
 **Rust** owns the plugin registry, one sandboxed VM per active session, the
@@ -88,8 +88,8 @@ Each VM runs with Luau sandboxing enabled. Packages declare host APIs (required
 or optional) and constraints in `plugin.yaml`.
 
 **Request vs grant:** the manifest is the request. The Flutter host persists user
-grants via `PluginGrantStore` and passes an effective grant snapshot into session
-start. See [Grants](../host/GRANTS.md).
+permission decisions via `PluginGrantStore` and passes an effective snapshot into
+session start. See [Plugin permissions](../host/PLUGIN_PERMISSIONS.md).
 
 **Enforcement:** a central Rust `PermissionGate` is the security boundary for
 privileged host work. Injecting only granted host modules is ergonomics; every

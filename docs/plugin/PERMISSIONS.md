@@ -18,4 +18,4 @@ Prefer `plugin.yaml`. Exact key shapes live in example manifests and generated
 ## Host persistence
 
 Flutter persists decisions through `PluginGrantStore`. See
-[host/GRANTS.md](../host/GRANTS.md).
+[host/PLUGIN_PERMISSIONS.md](../host/PLUGIN_PERMISSIONS.md).

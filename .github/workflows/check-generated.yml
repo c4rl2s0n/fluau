@@ -1,0 +1,40 @@
+name: check-generated
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  readmes:
+    name: READMEs up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Render READMEs from templates
+        run: dart run tool/render_readmes.dart
+      - name: Fail if generated READMEs drifted
+        run: |
+          if ! git diff --exit-code -- README.md packages/fluau/README.md; then
+            echo "README.md outputs are stale. Run: dart run tool/render_readmes.dart"
+            exit 1
+          fi
+
+  # Full codegen gate (Flutter + Rust). Heavier; shares paths with tool/check_generated.sh.
+  generated:
+    name: Generated artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check generated artifacts
+        run: ./tool/check_generated.sh
