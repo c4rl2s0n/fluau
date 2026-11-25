@@ -3,7 +3,7 @@ description: >-
   Sandboxed Luau plugins for Flutter — bridge, permission store, loader, and
   @LuaWidget annotations. Requires a Flutter–Rust bridge (e.g. flutter_rust_bridge)
   and a host-owned UI catalog.
-version: 0.1.1
+version: 0.1.2
 homepage: https://github.com/c4rl2s0n/fluau
 repository: https://github.com/c4rl2s0n/fluau
 issue_tracker: https://github.com/c4rl2s0n/fluau/issues
@@ -27,6 +27,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  skills_lint: ^0.5.3+1
 
 flutter:
   uses-material-design: true

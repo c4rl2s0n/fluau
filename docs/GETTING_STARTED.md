@@ -55,18 +55,34 @@ and [plugin/PERMISSIONS.md](plugin/PERMISSIONS.md).
 Once FRB already works in your project:
 
 1. Add the `fluau` Dart dependency and the Rust core crate.
-2. Add `fluau.yaml` and run `dart run fluau:bootstrap`.
+2. Run `dart run fluau:bootstrap` (no config file required if defaults match
+   your layout). Add an optional [`fluau.yaml`](host/FLUAU_YAML.md) when stamp
+   paths differ or — typically — to set `dart.frb_plugin_import` to your app
+   package:
+
+   ```yaml
+   rust:
+     crate_root: rust/
+     api_module: src/api/plugin.rs
+   dart:
+     bridge_adapter: lib/fluau_bridge.g.dart
+     frb_plugin_import: package:your_app/src/rust/api/plugin.dart
+   frb_version: "2.13.0"
+   ```
+
 3. Bind the stamped adapter after `RustLib.init()`.
 4. Implement a [UI catalog](host/UI_CATALOG.md) and a
    [permission store](host/PLUGIN_PERMISSIONS.md).
 
-Details: [host/INTEGRATION.md](host/INTEGRATION.md).
+Details: [host/INTEGRATION.md](host/INTEGRATION.md). Full config guide:
+[host/FLUAU_YAML.md](host/FLUAU_YAML.md).
 
 ## Next
 
 | Goal | Doc |
 |------|-----|
 | Architecture / trust | [concepts/ARCHITECTURE.md](concepts/ARCHITECTURE.md) |
+| `fluau.yaml` / bootstrap | [host/FLUAU_YAML.md](host/FLUAU_YAML.md) |
 | Host APIs | [host/EXTEND_HOST_API.md](host/EXTEND_HOST_API.md) |
 | Plugin permissions (host) | [host/PLUGIN_PERMISSIONS.md](host/PLUGIN_PERMISSIONS.md) |
 | Capabilities | [capabilities/OVERVIEW.md](capabilities/OVERVIEW.md) |

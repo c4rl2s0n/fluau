@@ -1,5 +1,6 @@
-# Workspace config for fluau bootstrap (paths relative to this file).
+# Optional workspace config for fluau bootstrap (paths relative to this file).
 # Analogous to flutter_rust_bridge.yaml — points at where stamped glue lives.
+# Omit this file to use bootstrap defaults; keep it to pin frb_plugin_import / paths.
 # Requires an existing FRB app (flutter_rust_bridge.yaml + Native Assets or Cargokit).
 
 rust:

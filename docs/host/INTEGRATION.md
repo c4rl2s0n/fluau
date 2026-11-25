@@ -17,14 +17,15 @@ backend (Native Assets or Cargokit) and Android Gradle/AGP versions.
 
 ## FRB version pin
 
-Match the app’s `flutter_rust_bridge` / codegen CLI to `fluau.yaml` (`frb_version`)
-and the example pin: **2.13.0**.
+Match the app’s `flutter_rust_bridge` / codegen CLI to the example pin (**2.13.0**),
+and to `frb_version` in [`fluau.yaml`](FLUAU_YAML.md) when you set one.
 
 ## Steps
 
 1. Add Cargo deps on `fluau` (default `runtime` feature). For `build.rs` stub
    generation: `fluau` with `default-features = false, features = ["stub-gen"]`.
-2. Create `fluau.yaml` (paths for stamped Rust API module + Dart adapter).
+2. Optionally create [`fluau.yaml`](FLUAU_YAML.md) when stamp paths or
+   `frb_plugin_import` differ from bootstrap defaults.
 3. Implement HostAPIs and call `fluau::setup(...)` once at process start
    (see `example/rust/src/demo_host`).
 4. Stamp glue and bind (see below).
@@ -32,7 +33,8 @@ and the example pin: **2.13.0**.
 <!-- fluau:include-begin id="bootstrap-bind" -->
 ### Bootstrap and bind
 
-After FRB works in your app, add `fluau.yaml` and stamp glue:
+After FRB works in your app, stamp glue (`fluau.yaml` is optional; add one to
+override stamp paths or set `frb_plugin_import`):
 
 ```bash
 dart run fluau:bootstrap
@@ -59,4 +61,5 @@ await PluginRegistryLoader.registerPackages([...]);
 
 Adding HostApis or widgets does **not** require new bridge methods.
 
-Also set up a [UI catalog](UI_CATALOG.md) and a [permission store](PLUGIN_PERMISSIONS.md).
+Config reference: [FLUAU_YAML.md](FLUAU_YAML.md). Also set up a
+[UI catalog](UI_CATALOG.md) and a [permission store](PLUGIN_PERMISSIONS.md).

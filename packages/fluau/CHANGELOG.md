@@ -1,3 +1,9 @@
+## 0.1.2
+
+- Ship Agent Skills under `skills/` for consumers (`dart run skills@ get`).
+- Cover getting started, host integration, plugins, permissions, UI catalog,
+  capabilities, and regen workflows.
+
 ## 0.1.1
 
 - Document crates.io `fluau` / `fluau_macros` and pub.dev `fluau_codegen` as the

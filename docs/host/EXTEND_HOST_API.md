@@ -12,7 +12,8 @@ logging sinks, and similar.
    ships an empty registry.
 3. Call `PermissionGate::require` / `require_with` on every privileged path;
    register constraint checkers at setup.
-4. Rebuild — Luau stubs refresh from `host_apis` in `fluau.yaml` / `build.rs`.
+4. Rebuild — Luau stubs refresh from the app’s `build.rs` (and related codegen),
+   not from `fluau.yaml`.
 
 Do **not** put concrete HostAPIs in the core crate. Do **not** change
 `LuaPluginBridge` shapes for new surfaces; constraints stay opaque JSON.

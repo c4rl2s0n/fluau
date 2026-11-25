@@ -31,5 +31,5 @@ repo also holds the example host and Rust runtime.
 | Everyone | [Getting started](docs/GETTING_STARTED.md) |
 | Architecture | [concepts/ARCHITECTURE.md](docs/concepts/ARCHITECTURE.md) |
 | Plugin authors | [plugin/OVERVIEW.md](docs/plugin/OVERVIEW.md), [plugin/PERMISSIONS.md](docs/plugin/PERMISSIONS.md) |
-| Host integrators | [host/INTEGRATION.md](docs/host/INTEGRATION.md), [UI catalog](docs/host/UI_CATALOG.md), [Plugin permissions](docs/host/PLUGIN_PERMISSIONS.md) |
+| Host integrators | [host/INTEGRATION.md](docs/host/INTEGRATION.md), [fluau.yaml](docs/host/FLUAU_YAML.md), [UI catalog](docs/host/UI_CATALOG.md), [Plugin permissions](docs/host/PLUGIN_PERMISSIONS.md) |
 | Capabilities / codegen | [capabilities/OVERVIEW.md](docs/capabilities/OVERVIEW.md), [WHEN_TO_RUN](docs/codegen/WHEN_TO_RUN.md) |

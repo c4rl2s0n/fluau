@@ -1,8 +1,11 @@
 #!/usr/bin/env dart
-// Bootstrap: stamp FRB api forwards + Dart LuaPluginBridge adapter from fluau.yaml.
+// Bootstrap: stamp FRB api forwards + Dart LuaPluginBridge adapter.
 //
 // Assumes an existing FRB app (flutter_rust_bridge.yaml + Native Assets or Cargokit). Does NOT
 // create FRB from scratch.
+//
+// fluau.yaml is optional — built-in defaults apply when the file is missing.
+// Create one to override stamp paths or set dart.frb_plugin_import.
 //
 // Usage (from an app with fluau dependency):
 //   dart run fluau:bootstrap
@@ -18,6 +21,24 @@ import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
+const _defaultCrateRoot = 'rust/';
+const _defaultApiModule = 'src/api/plugin.rs';
+const _defaultBridgeAdapter = 'lib/fluau_bridge.g.dart';
+const _defaultFrbPluginImport = 'package:app/src/rust/api/plugin.dart';
+const _defaultFrbVersion = '2.13.0';
+
+final _starterYaml = '''
+# Optional — omit fluau.yaml to use these defaults.
+rust:
+  crate_root: $_defaultCrateRoot
+  api_module: $_defaultApiModule
+dart:
+  bridge_adapter: $_defaultBridgeAdapter
+  # Change to your FRB-generated plugin API import:
+  frb_plugin_import: $_defaultFrbPluginImport
+frb_version: "$_defaultFrbVersion"
+'''.trim();
+
 void main(List<String> args) async {
   var configPath = 'fluau.yaml';
   var generateFrb = false;
@@ -28,31 +49,67 @@ void main(List<String> args) async {
       generateFrb = true;
     } else if (args[i] == '--help' || args[i] == '-h') {
       stdout.writeln(
-        'Usage: dart run fluau:bootstrap [--config FILE] [--generate-frb]',
+        'Usage: dart run fluau:bootstrap [--config FILE] [--generate-frb]\n'
+        '\n'
+        'fluau.yaml is optional. Defaults when omitted:\n'
+        '  rust.crate_root:         $_defaultCrateRoot\n'
+        '  rust.api_module:         $_defaultApiModule\n'
+        '  dart.bridge_adapter:     $_defaultBridgeAdapter\n'
+        '  dart.frb_plugin_import:  $_defaultFrbPluginImport\n'
+        '  frb_version:             $_defaultFrbVersion\n'
+        '\n'
+        'Create fluau.yaml to override paths or set frb_plugin_import to your\n'
+        'app package. Example starter:\n'
+        '\n'
+        '$_starterYaml',
       );
       exit(0);
     }
   }
 
-  final configFile = File(configPath);
-  if (!configFile.existsSync()) {
-    stderr.writeln('Config not found: $configPath');
-    exit(1);
-  }
   final root = Directory.current.path;
-  final doc = loadYaml(configFile.readAsStringSync()) as YamlMap;
+  final configFile = File(configPath);
+  final YamlMap rust;
+  final YamlMap dart;
+  final String? frbVersionRaw;
+  final usedDefaultsOnly = !configFile.existsSync();
 
-  final rust = doc['rust'] as YamlMap? ?? YamlMap();
-  final dart = doc['dart'] as YamlMap? ?? YamlMap();
-  final crateRoot = _join(root, (rust['crate_root'] as String?) ?? 'rust/');
-  final apiModuleRel = (rust['api_module'] as String?) ?? 'src/api/plugin.rs';
+  if (usedDefaultsOnly) {
+    stderr.writeln(
+      'No $configPath — using built-in defaults.\n'
+      'Create fluau.yaml when stamp paths or frb_plugin_import differ '
+      '(default import is almost never correct for a real app):\n'
+      '\n'
+      '$_starterYaml\n',
+    );
+    rust = YamlMap();
+    dart = YamlMap();
+    frbVersionRaw = null;
+  } else {
+    final doc = loadYaml(configFile.readAsStringSync()) as YamlMap;
+    rust = doc['rust'] as YamlMap? ?? YamlMap();
+    dart = doc['dart'] as YamlMap? ?? YamlMap();
+    frbVersionRaw = doc['frb_version'] as String?;
+  }
+
+  final crateRoot =
+      _join(root, (rust['crate_root'] as String?) ?? _defaultCrateRoot);
+  final apiModuleRel = (rust['api_module'] as String?) ?? _defaultApiModule;
   final apiModule = _join(crateRoot, apiModuleRel);
   final bridgeRel =
-      (dart['bridge_adapter'] as String?) ?? 'lib/fluau_bridge.g.dart';
+      (dart['bridge_adapter'] as String?) ?? _defaultBridgeAdapter;
   final bridgePath = _join(root, bridgeRel);
-  final frbImport = (dart['frb_plugin_import'] as String?) ??
-      'package:app/src/rust/api/plugin.dart';
-  final frbVersion = (doc['frb_version'] as String?) ?? '2.13.0';
+  final frbImport =
+      (dart['frb_plugin_import'] as String?) ?? _defaultFrbPluginImport;
+  final frbVersion = frbVersionRaw ?? _defaultFrbVersion;
+
+  if (frbImport == _defaultFrbPluginImport) {
+    stderr.writeln(
+      'Warning: dart.frb_plugin_import is the placeholder '
+      '$_defaultFrbPluginImport — set it in fluau.yaml to your FRB '
+      'plugin API import before using the stamped adapter.',
+    );
+  }
 
   _ensureCargoDep(crateRoot);
   _stampRustApiIfMissing(apiModule);
@@ -61,6 +118,7 @@ void main(List<String> args) async {
   stdout.writeln('Stamped:');
   stdout.writeln('  Rust api:  $apiModule');
   stdout.writeln('  Dart bridge adapter: $bridgePath');
+  stdout.writeln('  FRB import: $frbImport');
   stdout.writeln('FRB version pin: $frbVersion');
   stdout.writeln(
     'Next: flutter_rust_bridge_codegen generate  (then re-run bootstrap if needed)',

@@ -1,0 +1,12 @@
+# skills_lint.yaml — validates published package skills under skills/
+skills_lint:
+  rules:
+    check-absolute-paths: error
+  directories:
+    - path: "skills"
+      rules:
+        pub-archive-includes-skill: error
+        published-skill-name: error
+        check-relative-paths:
+          severity: error
+          within-skill: true

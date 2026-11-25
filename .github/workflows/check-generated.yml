@@ -23,6 +23,24 @@ jobs:
             exit 1
           fi
 
+  skills:
+    name: Package skills lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/fluau
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Resolve package deps
+        run: flutter pub get
+      - name: Lint published skills
+        run: dart run skills_lint
+      - name: Fail dart test on invalid skills
+        run: flutter test test/skills_lint_test.dart
+
   # Full codegen gate (Flutter + Rust). Heavier; shares paths with tool/check_generated.sh.
   generated:
     name: Generated artifacts
