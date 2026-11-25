@@ -3,51 +3,40 @@
 Code generator for [fluau](https://pub.dev/packages/fluau): keep Dart UI catalogs,
 Rust UI builders, and Luau stubs aligned.
 
-**One tool.** No `build_runner` required for fluau (avoids `build` 4/5 conflicts
-with other generators).
+**One tool.** No `build_runner` required for fluau.
 
 ## Install
 
 ```yaml
 dev_dependencies:
-  fluau_codegen: ^0.1.1
+  fluau_codegen: ^0.1.2
 ```
 
 ## Default: generate everything
 
+From the Flutter app root (`fluau.yaml` optional — see
+[FLUAU_YAML](https://github.com/c4rl2s0n/fluau/blob/main/docs/host/FLUAU_YAML.md)):
+
 ```bash
-dart run fluau_codegen \
-  --input lib \
-  --rust-out rust/src \
-  --dart-out lib/widgets \
-  --luau-out assets/plugins/_types
+dart run fluau_codegen
 ```
 
-`--input` is scanned for `@LuaCapability`. Widgets default to `lib/widgets` when
-that directory exists (override with `--widgets-input`). Writes:
+Paths resolve as **CLI flags > fluau.yaml > built-in defaults**
+(`lib/`, `lib/widgets/`, `rust/src`, `assets/plugins/_types`).
+
+Writes:
 
 - `widget_serializers.g.dart`, `lua_engine.rs`, `api/lua.rs`, `ui.d.luau`
 - capability `*.g.dart` parts + `capabilities.d.luau`
 
-## Selective
+## Selective / overrides
 
 ```bash
-dart run fluau_codegen --widgets \
-  --input lib/widgets \
-  --rust-out rust/src \
-  --dart-out lib/widgets \
-  --luau-out assets/plugins/_types
-
-dart run fluau_codegen --capabilities \
-  --input lib \
-  --luau-out assets/plugins/_types
+dart run fluau_codegen --widgets
+dart run fluau_codegen --capabilities
+dart run fluau_codegen --config path/to/fluau.yaml
+dart run fluau_codegen --input lib --rust-out rust/src   # override yaml
 ```
-
-Deprecated aliases (one release): `--generate` → `--widgets`,
-`--generate-capabilities` → `--capabilities`.
-
-See the monorepo [WHEN_TO_RUN](https://github.com/c4rl2s0n/fluau/blob/main/docs/codegen/WHEN_TO_RUN.md)
-guide for which command to run after which change.
 
 ## License
 

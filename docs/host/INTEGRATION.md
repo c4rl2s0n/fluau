@@ -55,7 +55,7 @@ Without `ui_setup`, Lua gets an **empty** `ui` table — run
 [`fluau_codegen`](../codegen/WHEN_TO_RUN.md) and pass
 `ui_setup: Some(lua_engine::setup_lua_api)`.
 
-**Versions:** Dart `fluau: ^0.1.6` with crates.io `fluau = "0.1"` (currently
+**Versions:** Dart `fluau: ^0.1.7` with crates.io `fluau = "0.1"` (currently
 0.1.0) is supported — patch numbers need not match within `0.1`.
 
 <!-- fluau:include-begin id="bootstrap-bind" -->

@@ -1,3 +1,9 @@
+## 0.1.2
+
+- Paths from `fluau.yaml` (optional) with built-in defaults; CLI flags override.
+- Zero-arg `dart run fluau_codegen` generates widgets + capabilities from the
+  app root (`--config` supported).
+
 ## 0.1.1
 
 - **CLI-only**: removed the `build_runner` SharedPartBuilder and `build` /

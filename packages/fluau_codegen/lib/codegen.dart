@@ -1,6 +1,7 @@
 /// fluau Code Generator CLI.
 ///
 /// Default: generate widgets + capabilities.
+/// Paths: CLI flags > fluau.yaml > built-in defaults.
 /// Selective: `--widgets` or `--capabilities`.
 /// Deprecated aliases: `--generate`, `--generate-capabilities`.
 
@@ -11,6 +12,7 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 
 import 'capability_codegen.dart';
+import 'fluau_config.dart';
 import 'generators/dart_serializer_generator.dart';
 import 'generators/luau_stub_generator.dart';
 import 'generators/rust_generator.dart';
@@ -20,9 +22,9 @@ enum _Mode { all, widgets, capabilities }
 
 /// Main entry point for the code generator CLI.
 void main(List<String> args) async {
-  if (args.isEmpty || args.contains('--help') || args.contains('-h')) {
+  if (args.contains('--help') || args.contains('-h')) {
     _printUsage();
-    exit(args.isEmpty ? 1 : 0);
+    exit(0);
   }
 
   try {
@@ -33,6 +35,11 @@ void main(List<String> args) async {
         'use ${parsed.mode == _Mode.widgets ? '--widgets' : '--capabilities'} '
         '(or omit for generate-all).',
       );
+    }
+    if (parsed.configPathUsed != null) {
+      print('Using config: ${parsed.configPathUsed}');
+    } else {
+      print('No fluau.yaml — using built-in path defaults.');
     }
 
     final doWidgets =
@@ -65,25 +72,20 @@ void main(List<String> args) async {
 void _printUsage() {
   print('fluau Code Generator');
   print('');
-  print('Default (widgets + capabilities):');
-  print('  dart run fluau_codegen \\');
-  print('    --input <dart_lib_dir> \\');
-  print('    --rust-out <rust_src_dir> \\');
-  print('    [--widgets-input <widgets_dir>] \\');
-  print('    [--dart-out <widgets_dir>] \\');
-  print('    [--luau-out <luau_stubs_dir>]');
+  print('From the Flutter app root (fluau.yaml optional):');
+  print('  dart run fluau_codegen');
+  print('  dart run fluau_codegen --widgets');
+  print('  dart run fluau_codegen --capabilities');
   print('');
-  print('Widgets only:');
-  print('  dart run fluau_codegen --widgets \\');
-  print('    --input <widgets_dir> \\');
-  print('    --rust-out <rust_src_dir> \\');
-  print('    [--dart-out <widgets_dir>] \\');
-  print('    [--luau-out <luau_stubs_dir>]');
+  print('Paths resolve as: CLI flags > fluau.yaml > built-in defaults.');
+  print('  codegen.input / codegen.widgets / codegen.luau_out');
+  print('  rust.crate_root → rust-out = <crate_root>/src');
+  print('  stubs.ui_d_luau → luau_out parent when codegen.luau_out omitted');
   print('');
-  print('Capabilities only:');
-  print('  dart run fluau_codegen --capabilities \\');
-  print('    --input <dart_lib_dir> \\');
-  print('    [--luau-out <luau_stubs_dir>]');
+  print('Overrides:');
+  print('  --config <fluau.yaml>');
+  print('  --input <dir>  --widgets-input <dir>  --rust-out <dir>');
+  print('  --dart-out <dir>  --luau-out <dir>');
   print('');
   print('Writes: widget_serializers.g.dart, lua_engine.rs, api/lua.rs,');
   print('ui.d.luau, capability *.g.dart parts, capabilities.d.luau.');
@@ -97,6 +99,7 @@ class _CliArgs {
   final String? dartOut;
   final String? luauOut;
   final String? deprecatedAlias;
+  final String? configPathUsed;
 
   _CliArgs({
     required this.mode,
@@ -106,6 +109,7 @@ class _CliArgs {
     this.dartOut,
     this.luauOut,
     this.deprecatedAlias,
+    this.configPathUsed,
   });
 
   factory _CliArgs.parse(List<String> args) {
@@ -116,6 +120,7 @@ class _CliArgs {
     String? rustOut;
     String? dartOut;
     String? luauOut;
+    var configPath = 'fluau.yaml';
 
     for (var i = 0; i < args.length; i++) {
       final flag = args[i];
@@ -144,6 +149,9 @@ class _CliArgs {
       }
       final value = args[++i];
       switch (flag) {
+        case '--config':
+          configPath = value;
+          break;
         case '--input':
           input = value;
           break;
@@ -164,63 +172,61 @@ class _CliArgs {
       }
     }
 
+    final fromYaml = loadCodegenPaths(configPath: configPath);
     final resolvedMode = mode ?? _Mode.all;
-    if (input == null) {
-      throw ArgumentError('Missing required --input');
-    }
 
-    final absoluteInput = path.normalize(path.absolute(input));
+    // CLI overrides yaml/defaults.
+    final capsInput = path.normalize(
+      path.absolute(input ?? fromYaml.input),
+    );
+    final wInput = path.normalize(
+      path.absolute(widgetsInput ?? fromYaml.widgets),
+    );
+    // --widgets with --input historically meant the widgets dir.
+    final widgetsDir = resolvedMode == _Mode.widgets && input != null
+        ? path.normalize(path.absolute(widgetsInput ?? input))
+        : wInput;
+    final resolvedRust = path.normalize(
+      path.absolute(rustOut ?? fromYaml.rustOut),
+    );
+    final resolvedDart = path.normalize(
+      path.absolute(dartOut ?? fromYaml.dartOut),
+    );
+    final resolvedLuau = path.normalize(
+      path.absolute(luauOut ?? fromYaml.luauOut),
+    );
 
     switch (resolvedMode) {
       case _Mode.capabilities:
         return _CliArgs(
           mode: resolvedMode,
-          capabilitiesInput: absoluteInput,
-          luauOut: luauOut,
+          capabilitiesInput: capsInput,
+          luauOut: resolvedLuau,
           deprecatedAlias: deprecatedAlias,
+          configPathUsed: fromYaml.configPathUsed,
         );
       case _Mode.widgets:
-        if (rustOut == null) {
-          throw ArgumentError('Missing required --rust-out for --widgets');
-        }
-        final wInput = path.normalize(
-          path.absolute(widgetsInput ?? absoluteInput),
-        );
         return _CliArgs(
           mode: resolvedMode,
-          widgetsInput: wInput,
-          rustOut: path.normalize(path.absolute(rustOut)),
+          widgetsInput: widgetsDir,
+          rustOut: resolvedRust,
           dartOut: path.normalize(
-            path.absolute(dartOut ?? wInput),
+            path.absolute(dartOut ?? widgetsDir),
           ),
-          luauOut: luauOut,
+          luauOut: resolvedLuau,
           deprecatedAlias: deprecatedAlias,
+          configPathUsed: fromYaml.configPathUsed,
         );
       case _Mode.all:
-        if (rustOut == null) {
-          throw ArgumentError(
-            'Missing required --rust-out for generate-all (default)',
-          );
-        }
-        final inferredWidgets = path.join(absoluteInput, 'widgets');
-        final wInput = path.normalize(
-          path.absolute(
-            widgetsInput ??
-                (Directory(inferredWidgets).existsSync()
-                    ? inferredWidgets
-                    : absoluteInput),
-          ),
-        );
         return _CliArgs(
           mode: resolvedMode,
-          capabilitiesInput: absoluteInput,
-          widgetsInput: wInput,
-          rustOut: path.normalize(path.absolute(rustOut)),
-          dartOut: path.normalize(
-            path.absolute(dartOut ?? wInput),
-          ),
-          luauOut: luauOut,
+          capabilitiesInput: capsInput,
+          widgetsInput: widgetsDir,
+          rustOut: resolvedRust,
+          dartOut: resolvedDart,
+          luauOut: resolvedLuau,
           deprecatedAlias: deprecatedAlias,
+          configPathUsed: fromYaml.configPathUsed,
         );
     }
   }
@@ -238,7 +244,8 @@ Future<void> generateWidgets({
   final absoluteDart = path.normalize(path.absolute(dartOutputDir));
   final absoluteLuau = path.normalize(
     path.absolute(
-      luauOutputDir ?? path.join(absoluteInputDir, '../../assets/plugins/_types'),
+      luauOutputDir ??
+          path.join(absoluteInputDir, '../../assets/plugins/_types'),
     ),
   );
 

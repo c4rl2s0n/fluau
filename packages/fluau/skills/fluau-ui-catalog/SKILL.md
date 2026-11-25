@@ -26,22 +26,18 @@ Docs: [UI catalog](https://github.com/c4rl2s0n/fluau/blob/main/docs/host/UI_CATA
 
 ```yaml
 dev_dependencies:
-  fluau_codegen: ^0.1.1
+  fluau_codegen: ^0.1.2
 ```
 
 ### Generate (default: widgets + capabilities)
 
+From the Flutter app root (`fluau.yaml` optional — paths from yaml or built-in defaults):
+
 ```bash
-dart run fluau_codegen \
-  --input lib \
-  --rust-out rust/src \
-  --dart-out lib/widgets \
-  --luau-out assets/plugins/_types
+dart run fluau_codegen
 ```
 
-`--input` is scanned for `@LuaCapability`. Widgets default to `lib/widgets` when that directory exists (`--widgets-input` to override).
-
-Selective: `dart run fluau_codegen --widgets …` or `--capabilities …`.
+Selective: `dart run fluau_codegen --widgets` or `--capabilities`. CLI flags override yaml.
 
 Emits: `widget_serializers.g.dart`, `lua_engine.rs` (`setup_lua_api`), `api/lua.rs`, `ui.d.luau`, plus capability `*.g.dart` / `capabilities.d.luau` when present.
 

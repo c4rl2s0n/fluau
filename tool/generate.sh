@@ -15,15 +15,11 @@ EXAMPLE="$ROOT/example"
 
 CODEGEN="$ROOT/packages/fluau_codegen"
 
-echo "==> fluau_codegen (widgets + capabilities)"
+echo "==> fluau_codegen (widgets + capabilities from example/fluau.yaml)"
 (
   cd "$CODEGEN"
   dart pub get
-  dart run bin/fluau_codegen.dart \
-    --input "$EXAMPLE/lib" \
-    --rust-out "$EXAMPLE/rust/src" \
-    --dart-out "$EXAMPLE/lib/widgets" \
-    --luau-out "$EXAMPLE/assets/plugins/_types"
+  (cd "$EXAMPLE" && dart run "$CODEGEN/bin/fluau_codegen.dart")
 )
 
 echo "==> Host stubs (Cargo build.rs → host.d.luau)"

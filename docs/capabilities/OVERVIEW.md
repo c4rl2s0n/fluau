@@ -35,8 +35,8 @@ here.
 ## Regenerate
 
 ```bash
-dart run fluau_codegen --capabilities --input lib --luau-out assets/plugins/_types
-# or full refresh: ./tool/generate.sh
+dart run fluau_codegen --capabilities
+# or full refresh: dart run fluau_codegen   /   ./tool/generate.sh
 ```
 
 See [codegen/WHEN_TO_RUN.md](../codegen/WHEN_TO_RUN.md).

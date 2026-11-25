@@ -1,4 +1,4 @@
-# Optional workspace config for fluau bootstrap (paths relative to this file).
+# Optional workspace config for fluau bootstrap + codegen (paths relative to this file).
 # Analogous to flutter_rust_bridge.yaml — points at where stamped glue lives.
 # New apps default to src/api/fluau.rs; this example keeps plugin.rs (existing FRB).
 # Requires an existing FRB app (flutter_rust_bridge.yaml + Native Assets or Cargokit).
@@ -16,6 +16,11 @@ dart:
   # Package import prefix used inside the stamped adapter.
   frb_package: luatest
   frb_plugin_import: package:luatest/src/rust/api/plugin.dart
+
+codegen:
+  input: lib/
+  widgets: lib/widgets/
+  luau_out: assets/plugins/_types/
 
 stubs:
   host_d_luau: assets/plugins/_types/host.d.luau

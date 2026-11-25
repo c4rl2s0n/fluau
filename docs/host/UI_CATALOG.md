@@ -12,8 +12,9 @@ controls itself.
    module and declares `part 'widget_serializers.g.dart';`. Codegen hardcodes
    `part of 'catalog.dart';`, so a lone widget file without that barrel will not
    compile against the generated part.
-3. **Codegen** — add `fluau_codegen` as a **dev_dependency**, then run the CLI
-   (default generates widgets **and** capabilities). Never hand-roll a Dart
+3. **Codegen** — add `fluau_codegen` as a **dev_dependency**, then run
+   `dart run fluau_codegen` from the app root (paths from
+   [`fluau.yaml`](FLUAU_YAML.md) or built-in defaults). Never hand-roll a Dart
    registry — use generated `LuaWidgetRegistry.buildFromMap`.
 4. **Registration** — pass `SetupOptions.ui_setup: Some(lua_engine::setup_lua_api)`
    in Rust (via `fluau::setup` at process start); pass
@@ -25,25 +26,21 @@ controls itself.
 
 ```yaml
 dev_dependencies:
-  fluau_codegen: ^0.1.1
+  fluau_codegen: ^0.1.2
 ```
 
 ```bash
-dart run fluau_codegen \
-  --input lib \
-  --rust-out rust/src \
-  --dart-out lib/widgets \
-  --luau-out assets/plugins/_types
+dart run fluau_codegen
 ```
 
 Emits `widget_serializers.g.dart`, `lua_engine.rs` (`setup_lua_api`), `api/lua.rs`,
-and `ui.d.luau` (plus capability artifacts when present under `--input`).
+and `ui.d.luau` (plus capability artifacts when present under `codegen.input`).
 
 The example catalog lives under `example/lib/widgets/` (`catalog.dart` +
 concrete widgets). Copy that layout rather than inventing a new one.
 
 ## After adding a widget
 
-Run `./tool/generate.sh`, or the `fluau_codegen` command above. Only run
-`flutter_rust_bridge_codegen generate` if FRB-exposed APIs changed. See
+Run `./tool/generate.sh`, or `dart run fluau_codegen` from the app root. Only
+run `flutter_rust_bridge_codegen generate` if FRB-exposed APIs changed. See
 [codegen/WHEN_TO_RUN.md](../codegen/WHEN_TO_RUN.md).

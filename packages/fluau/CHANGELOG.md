@@ -1,3 +1,9 @@
+## 0.1.7
+
+- `fluau_codegen` reads paths from `fluau.yaml` (zero-arg
+  `dart run fluau_codegen`). Skills/docs updated for yaml-driven codegen.
+- Align with `fluau_codegen` 0.1.2.
+
 ## 0.1.6
 
 - Skills/docs: single `fluau_codegen` CLI (default generate-all; no
