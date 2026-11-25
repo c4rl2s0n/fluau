@@ -28,7 +28,7 @@ Docs: [UI catalog](https://github.com/c4rl2s0n/fluau/blob/main/docs/host/UI_CATA
 
 ```yaml
 dev_dependencies:
-  fluau_codegen: ^0.1.5
+  fluau_codegen: ^0.1.6
 ```
 
 ### Generate (default: widgets + capabilities)

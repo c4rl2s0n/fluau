@@ -24,7 +24,7 @@ dependencies:
   fluau: ^0.1.9
 
 dev_dependencies:
-  fluau_codegen: ^0.1.5
+  fluau_codegen: ^0.1.6
 ```
 
 ```toml

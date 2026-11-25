@@ -1,8 +1,12 @@
-## 0.1.5
+## 0.1.6
 
 - `@LuaWidget` classes must extend Flutter `Widget`. Registry / deserialize
   return `Widget` instances directly (no `LuaWidgetInterface`).
 - Infer nested children from `Widget` / `List<Widget>`.
+
+## 0.1.5
+
+- (Version number reserved / superseded by 0.1.6.)
 
 ## 0.1.4
 

@@ -3,7 +3,7 @@
 - **Breaking:** remove `LuaWidgetInterface`. Catalog entries are Flutter
   `Widget`s (`@LuaWidget` on `StatelessWidget` / etc.). `LuaEmptyWidget` is a
   `StatelessWidget`.
-- Align with `fluau_codegen` 0.1.5.
+- Align with `fluau_codegen` 0.1.6.
 
 ## 0.1.8
 
