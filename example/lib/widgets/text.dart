@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluau/fluau.dart';
 import 'types.dart';
 
-/// Text widget definition for Lua
-///
-/// This is a dataclass (not a StatelessWidget) that defines the structure
-/// of a Text widget that can be created from Lua.
+/// Text widget for Lua.
 ///
 /// Lua usage:
 ///   ui.Text {
@@ -15,29 +12,21 @@ import 'types.dart';
 ///     weight = "bold"
 ///   }
 @LuaWidget(name: 'Text')
-class LuaTextWidget implements LuaWidgetInterface {
-  /// The text to display (required)
-  @LuaProperty(required: true)
+class LuaTextWidget extends StatelessWidget {
   final String text;
-
-  /// Text size preset: "small", "medium", "large"
-  @LuaProperty()
   final TextSize? size;
-
-  /// Text color preset: "primary", "secondary", "error", "text"
-  @LuaProperty()
   final TextColor? color;
-
-  /// Font weight preset: "normal", "bold"
-  @LuaProperty()
   final FontWeightPreset? weight;
 
-  const LuaTextWidget({required this.text, this.size, this.color, this.weight});
+  const LuaTextWidget({
+    super.key,
+    required this.text,
+    this.size,
+    this.color,
+    this.weight,
+  });
 
-  /// Build the Flutter Text widget from this definition
-  ///
-  /// This method is called by the code-generated serializer to convert
-  /// the Lua-defined structure into a Flutter widget.
+  @override
   Widget build(BuildContext context) {
     return Text(
       text,
@@ -49,7 +38,6 @@ class LuaTextWidget implements LuaWidgetInterface {
     );
   }
 
-  /// Get font size from TextSize enum
   double? _getFontSize(TextSize? size) {
     switch (size) {
       case TextSize.small:
@@ -63,7 +51,6 @@ class LuaTextWidget implements LuaWidgetInterface {
     }
   }
 
-  /// Get color from TextColor enum using the current theme
   Color? _getColor(TextColor? color, BuildContext context) {
     if (color == null) return null;
 
@@ -79,7 +66,6 @@ class LuaTextWidget implements LuaWidgetInterface {
     }
   }
 
-  /// Get FontWeight from FontWeightPreset enum
   FontWeight _getFontWeight(FontWeightPreset? weight) {
     switch (weight) {
       case FontWeightPreset.bold:

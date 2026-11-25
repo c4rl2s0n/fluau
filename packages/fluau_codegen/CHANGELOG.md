@@ -1,3 +1,9 @@
+## 0.1.5
+
+- `@LuaWidget` classes must extend Flutter `Widget`. Registry / deserialize
+  return `Widget` instances directly (no `LuaWidgetInterface`).
+- Infer nested children from `Widget` / `List<Widget>`.
+
 ## 0.1.4
 
 - Dart `fromJson` emits positional constructor arguments when the Dart param is

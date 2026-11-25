@@ -305,7 +305,7 @@ class DartSerializerGenerator {
     );
     buffer.writeln('class LuaWidgetRegistry {');
     buffer.writeln(
-      '  static final Map<String, LuaWidgetInterface Function(Map<String, dynamic>)> _builders = {',
+      '  static final Map<String, Widget Function(Map<String, dynamic>)> _builders = {',
     );
 
     for (final luaClass in classes.where((c) => c.isWidget)) {
@@ -322,12 +322,12 @@ class DartSerializerGenerator {
 
     buffer.writeln('  };');
     buffer.writeln();
-    buffer.writeln('  /// Deserialize a widget from JSON (without building it)');
+    buffer.writeln('  /// Deserialize a widget from JSON');
     buffer.writeln(
       '  /// The [type] parameter should be the Lua widget type name (e.g., \'Text\', \'Button\').',
     );
     buffer.writeln(
-      '  static LuaWidgetInterface fromJson(String type, Map<String, dynamic> json) {',
+      '  static Widget fromJson(String type, Map<String, dynamic> json) {',
     );
     buffer.writeln('    final builder = _builders[type];');
     buffer.writeln('    if (builder != null) {');
@@ -343,11 +343,14 @@ class DartSerializerGenerator {
       '  /// This is the main entry point for building widgets from Lua JSON.',
     );
     buffer.writeln(
+      '  /// Catalog entries are Flutter [Widget]s — returned directly.',
+    );
+    buffer.writeln(
       '  static Widget buildFromMap(BuildContext context, Map<String, dynamic> widgetMap) {',
     );
     buffer.writeln('    final widgetType = widgetMap[\'type\'] as String?;');
     buffer.writeln('    if (widgetType == null) {');
-    buffer.writeln('      return const LuaEmptyWidget().build(context);');
+    buffer.writeln('      return const LuaEmptyWidget();');
     buffer.writeln('    }');
     buffer.writeln();
     buffer.writeln('    // Remove type from properties');
@@ -356,9 +359,7 @@ class DartSerializerGenerator {
     );
     buffer.writeln('    properties.remove(\'type\');');
     buffer.writeln();
-    buffer.writeln('    // Deserialize and build');
-    buffer.writeln('    final widget = fromJson(widgetType, properties);');
-    buffer.writeln('    return widget.build(context);');
+    buffer.writeln('    return fromJson(widgetType, properties);');
     buffer.writeln('  }');
     buffer.writeln('}');
     buffer.writeln();
@@ -372,7 +373,7 @@ class DartSerializerGenerator {
       '/// Each child widget JSON should have a "type" field indicating its widget type.',
     );
     buffer.writeln(
-      'List<LuaWidgetInterface> _deserializeWidgetList(List<dynamic>? json) {',
+      'List<Widget> _deserializeWidgetList(List<dynamic>? json) {',
     );
     buffer.writeln('  if (json == null) return [];');
     buffer.writeln(
@@ -383,16 +384,10 @@ class DartSerializerGenerator {
 
     buffer.writeln('/// Deserialize a single widget from JSON');
     buffer.writeln(
-      '/// This creates the widget instance but does NOT build it.',
-    );
-    buffer.writeln(
-      '/// The build() method will be called later with proper BuildContext.',
-    );
-    buffer.writeln(
       '/// The JSON should have a "type" field indicating the widget type.',
     );
     buffer.writeln(
-      'LuaWidgetInterface _deserializeWidget(Map<String, dynamic> json) {',
+      'Widget _deserializeWidget(Map<String, dynamic> json) {',
     );
     buffer.writeln('  final widgetType = json[\'type\'] as String?;');
     buffer.writeln('  if (widgetType == null) {');
@@ -403,7 +398,6 @@ class DartSerializerGenerator {
     buffer.writeln('  final properties = Map<String, dynamic>.from(json);');
     buffer.writeln('  properties.remove(\'type\');');
     buffer.writeln();
-    buffer.writeln('  // Use the registry to deserialize');
     buffer.writeln(
       '  return LuaWidgetRegistry.fromJson(widgetType, properties);',
     );

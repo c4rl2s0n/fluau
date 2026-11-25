@@ -16,21 +16,16 @@ import 'package:fluau/fluau.dart';
 /// }
 /// ```
 @LuaWidget(name: 'Select')
-class LuaSelectWidget implements LuaWidgetInterface {
-  @LuaProperty(required: true)
+class LuaSelectWidget extends StatelessWidget {
   final String id;
-
-  @LuaProperty()
   final String? label;
-
-  @LuaProperty()
   final String? value;
 
   /// Option labels/values (same string used for both).
-  @LuaProperty()
   final List<String>? options;
 
   const LuaSelectWidget({
+    super.key,
     required this.id,
     this.label,
     this.value,

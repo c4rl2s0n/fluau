@@ -1,3 +1,10 @@
+## 0.1.9
+
+- **Breaking:** remove `LuaWidgetInterface`. Catalog entries are Flutter
+  `Widget`s (`@LuaWidget` on `StatelessWidget` / etc.). `LuaEmptyWidget` is a
+  `StatelessWidget`.
+- Align with `fluau_codegen` 0.1.5.
+
 ## 0.1.8
 
 - Docs/skills: `dart.lua_root` standalone serializers; constructor-param Lua API

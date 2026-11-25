@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluau/fluau.dart';
 import 'types.dart';
 
-/// Column widget definition for Lua
-///
-/// This is a dataclass (not a StatelessWidget) that defines the structure
-/// of a Column widget that can be created from Lua.
+/// Column widget for Lua.
 ///
 /// Lua usage:
 ///   ui.Column {
@@ -19,41 +16,30 @@ import 'types.dart';
 ///     }
 ///   }
 @LuaWidget(name: 'Column', hasChildren: true)
-class LuaColumnWidget implements LuaWidgetInterface {
-  /// The amount of space between children
-  @LuaProperty()
+class LuaColumnWidget extends StatelessWidget {
   final double? spacing;
-
-  /// How the children should be aligned along the main axis
-  @LuaProperty()
   final MainAxisAlignmentPreset? mainAxisAlignment;
-
-  /// How the children should be aligned along the cross axis
-  @LuaProperty()
   final CrossAxisAlignmentPreset? crossAxisAlignment;
-
-  /// The list of child widgets
-  @LuaChildren()
-  final List<LuaWidgetInterface>? children;
+  final List<Widget>? children;
 
   const LuaColumnWidget({
+    super.key,
     this.spacing,
     this.mainAxisAlignment,
     this.crossAxisAlignment,
     this.children,
   });
 
-  /// Build the Flutter Column widget from this definition
+  @override
   Widget build(BuildContext context) {
     return Column(
       spacing: spacing ?? 0,
       mainAxisAlignment: _parseMainAxisAlignment(mainAxisAlignment),
       crossAxisAlignment: _parseCrossAxisAlignment(crossAxisAlignment),
-      children: children?.map((w) => w.build(context)).toList() ?? [],
+      children: children ?? const [],
     );
   }
 
-  /// Parse MainAxisAlignment from MainAxisAlignmentPreset enum
   MainAxisAlignment _parseMainAxisAlignment(MainAxisAlignmentPreset? preset) {
     switch (preset) {
       case MainAxisAlignmentPreset.start:
@@ -73,7 +59,6 @@ class LuaColumnWidget implements LuaWidgetInterface {
     }
   }
 
-  /// Parse CrossAxisAlignment from CrossAxisAlignmentPreset enum
   CrossAxisAlignment _parseCrossAxisAlignment(
     CrossAxisAlignmentPreset? preset,
   ) {

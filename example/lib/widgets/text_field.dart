@@ -17,20 +17,14 @@ import 'package:fluau/fluau.dart';
 /// }
 /// ```
 @LuaWidget(name: 'TextField')
-class LuaTextFieldWidget implements LuaWidgetInterface {
-  @LuaProperty(required: true)
+class LuaTextFieldWidget extends StatelessWidget {
   final String id;
-
-  @LuaProperty()
   final String? label;
-
-  @LuaProperty()
   final String? value;
-
-  @LuaProperty()
   final bool? obscure;
 
   const LuaTextFieldWidget({
+    super.key,
     required this.id,
     this.label,
     this.value,

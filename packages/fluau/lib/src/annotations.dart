@@ -6,21 +6,21 @@
 /// - Generate Rust UI builders and Luau stubs
 library;
 
-/// Marks a class as a Lua-exposable widget.
+/// Marks a Flutter [Widget] as exposable to Lua.
 ///
-/// Widget classes must implement [LuaWidgetInterface] (have a build method).
+/// The annotated class must extend [Widget] (typically [StatelessWidget]).
 /// The code generator exposes each public generative constructor: the
 /// **constructor parameters** are the Lua snapshot API. Unnamed → `ui.<name>`;
-/// named ctor `styled` → `ui.<name>_styled`.
+/// named ctor `styled` → `ui.<name>_styled`. `Key` / `super.key` is skipped.
 ///
 /// Example:
 /// ```dart
 /// @LuaWidget(name: 'Text')
-/// class LuaTextWidget implements LuaWidgetInterface {
+/// class LuaTextWidget extends StatelessWidget {
 ///   final String text;
 ///   final String? color;
 ///
-///   const LuaTextWidget({required this.text, this.color});
+///   const LuaTextWidget({super.key, required this.text, this.color});
 ///
 ///   @override
 ///   Widget build(BuildContext context) => Text(text);
@@ -93,8 +93,8 @@ class LuaProperty {
 
 /// Optional rename for a child-list constructor parameter.
 ///
-/// Usually unnecessary: `List<LuaWidgetInterface>` params are inferred as
-/// children. Use to override the Lua key name.
+/// Usually unnecessary: `List<Widget>` params are inferred as children.
+/// Use to override the Lua key name.
 ///
 /// Example:
 /// ```dart

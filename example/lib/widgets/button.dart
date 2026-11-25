@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluau/fluau.dart';
 import 'text.dart';
 
-/// Button widget definition for Lua.
+/// Button widget for Lua.
 ///
 /// Lua usage:
 /// ```lua
@@ -12,18 +12,13 @@ import 'text.dart';
 /// }
 /// ```
 @LuaWidget(name: 'Button')
-class LuaButtonWidget implements LuaWidgetInterface {
-  @LuaProperty()
+class LuaButtonWidget extends StatelessWidget {
   final String? text;
-
-  /// Event payload forwarded to the plugin host on press.
-  @LuaCallback()
   final Map<String, dynamic>? onPressed;
-
-  @LuaProperty()
-  final LuaWidgetInterface? child;
+  final Widget? child;
 
   const LuaButtonWidget({
+    super.key,
     this.text,
     this.onPressed,
     this.child,
@@ -33,9 +28,9 @@ class LuaButtonWidget implements LuaWidgetInterface {
   Widget build(BuildContext context) {
     final Widget buttonChild;
     if (child != null) {
-      buttonChild = child!.build(context);
+      buttonChild = child!;
     } else if (text != null) {
-      buttonChild = LuaTextWidget(text: text!).build(context);
+      buttonChild = LuaTextWidget(text: text!);
     } else {
       buttonChild = const SizedBox();
     }

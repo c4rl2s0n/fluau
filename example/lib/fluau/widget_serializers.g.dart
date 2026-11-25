@@ -174,7 +174,7 @@ FontWeightPreset? _parseFontWeightPreset(String? value) {
 /// Widget registry for Lua widgets
 /// Maps widget type names to their deserialization functions
 class LuaWidgetRegistry {
-  static final Map<String, LuaWidgetInterface Function(Map<String, dynamic>)> _builders = {
+  static final Map<String, Widget Function(Map<String, dynamic>)> _builders = {
     'Column': (json) => _LuaColumnWidgetSerializer.fromJson(json),
     'TextField': (json) => _LuaTextFieldWidgetSerializer.fromJson(json),
     'Button': (json) => _LuaButtonWidgetSerializer.fromJson(json),
@@ -184,9 +184,9 @@ class LuaWidgetRegistry {
     'Select': (json) => _LuaSelectWidgetSerializer.fromJson(json),
   };
 
-  /// Deserialize a widget from JSON (without building it)
+  /// Deserialize a widget from JSON
   /// The [type] parameter should be the Lua widget type name (e.g., 'Text', 'Button').
-  static LuaWidgetInterface fromJson(String type, Map<String, dynamic> json) {
+  static Widget fromJson(String type, Map<String, dynamic> json) {
     final builder = _builders[type];
     if (builder != null) {
       return builder(json);
@@ -196,34 +196,31 @@ class LuaWidgetRegistry {
 
   /// Build a widget from a JSON map (with type field) and context
   /// This is the main entry point for building widgets from Lua JSON.
+  /// Catalog entries are Flutter [Widget]s — returned directly.
   static Widget buildFromMap(BuildContext context, Map<String, dynamic> widgetMap) {
     final widgetType = widgetMap['type'] as String?;
     if (widgetType == null) {
-      return const LuaEmptyWidget().build(context);
+      return const LuaEmptyWidget();
     }
 
     // Remove type from properties
     final properties = Map<String, dynamic>.from(widgetMap);
     properties.remove('type');
 
-    // Deserialize and build
-    final widget = fromJson(widgetType, properties);
-    return widget.build(context);
+    return fromJson(widgetType, properties);
   }
 }
 
 /// Deserialize a list of child widgets from JSON
 /// Each child widget JSON should have a "type" field indicating its widget type.
-List<LuaWidgetInterface> _deserializeWidgetList(List<dynamic>? json) {
+List<Widget> _deserializeWidgetList(List<dynamic>? json) {
   if (json == null) return [];
   return json.map((item) => _deserializeWidget(item as Map<String, dynamic>)).toList();
 }
 
 /// Deserialize a single widget from JSON
-/// This creates the widget instance but does NOT build it.
-/// The build() method will be called later with proper BuildContext.
 /// The JSON should have a "type" field indicating the widget type.
-LuaWidgetInterface _deserializeWidget(Map<String, dynamic> json) {
+Widget _deserializeWidget(Map<String, dynamic> json) {
   final widgetType = json['type'] as String?;
   if (widgetType == null) {
     return const LuaEmptyWidget();
@@ -233,7 +230,6 @@ LuaWidgetInterface _deserializeWidget(Map<String, dynamic> json) {
   final properties = Map<String, dynamic>.from(json);
   properties.remove('type');
 
-  // Use the registry to deserialize
   return LuaWidgetRegistry.fromJson(widgetType, properties);
 }
 

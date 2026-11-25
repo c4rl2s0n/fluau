@@ -17,20 +17,14 @@ import 'package:fluau/fluau.dart';
 /// }
 /// ```
 @LuaWidget(name: 'Expander', hasChildren: true)
-class LuaExpanderWidget implements LuaWidgetInterface {
-  @LuaProperty(required: true)
+class LuaExpanderWidget extends StatelessWidget {
   final String title;
-
-  @LuaProperty()
   final bool? expanded;
-
-  @LuaCallback()
   final Map<String, dynamic>? onToggle;
-
-  @LuaChildren()
-  final List<LuaWidgetInterface>? children;
+  final List<Widget>? children;
 
   const LuaExpanderWidget({
+    super.key,
     required this.title,
     this.expanded,
     this.onToggle,
@@ -58,8 +52,7 @@ class LuaExpanderWidget implements LuaWidgetInterface {
           padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children:
-                children?.map((w) => w.build(context)).toList() ?? const [],
+            children: children ?? const [],
           ),
         ),
       ],

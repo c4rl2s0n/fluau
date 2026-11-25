@@ -15,17 +15,13 @@ import 'package:fluau/fluau.dart';
 /// }
 /// ```
 @LuaWidget(name: 'Switch')
-class LuaSwitchWidget implements LuaWidgetInterface {
-  @LuaProperty(required: true)
+class LuaSwitchWidget extends StatelessWidget {
   final String id;
-
-  @LuaProperty()
   final String? label;
-
-  @LuaProperty()
   final bool? value;
 
   const LuaSwitchWidget({
+    super.key,
     required this.id,
     this.label,
     this.value,

@@ -25,7 +25,7 @@ on crates.io (and typically `fluau_codegen` on pub.dev for UI/capability generat
 
 ```yaml
 dependencies:
-  fluau: ^0.1.8
+  fluau: ^0.1.9
 ```
 
 Also depend on the Rust crate [`fluau`](https://crates.io/crates/fluau)
@@ -77,7 +77,7 @@ and
 - `LuaPluginBridge` + `dart run fluau:bootstrap`
 - Package YAML loader, permission sheet helpers, `PluginGrantStore`
 - Annotations (`@LuaWidget`, `@LuaCapability`, …) and session host widgets
-- `LuaWidgetInterface` only — no default catalog
+- `@LuaWidget` annotations — host owns the Flutter Widget catalog
 
 ## License
 

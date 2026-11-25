@@ -58,7 +58,7 @@ across FFI. A button carries an event payload; a press delivers that payload int
 the session. Text fields keep values on the Flutter side until an action flushes
 them into the plugin.
 
-The fluau Dart package ships annotations and `LuaWidgetInterface` only — **no**
+The fluau Dart package ships annotations and host helpers only — **no**
 default widgets. See [UI catalog](../host/UI_CATALOG.md).
 
 ## Session lifecycle

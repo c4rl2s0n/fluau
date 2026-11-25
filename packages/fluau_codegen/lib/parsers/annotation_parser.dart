@@ -90,6 +90,15 @@ class AnnotationParser {
     final className = classElement.name ?? '';
     if (className.isEmpty) return null;
 
+    // @LuaWidget catalog entries must be Flutter Widgets.
+    if (isWidget && !_isFlutterWidget(classElement)) {
+      print(
+        'Error: $className has @LuaWidget but does not extend Widget '
+        '(use StatelessWidget / StatefulWidget). Skipping.',
+      );
+      return null;
+    }
+
     final baseClassName =
         className.startsWith('Lua') ? className.substring(3) : className;
     final rustStructName = 'Lua$baseClassName';
@@ -212,29 +221,39 @@ class AnnotationParser {
       }
     }
 
-    if (param.type.element?.name == 'LuaWidgetInterface') {
-      isChildWidget = true;
-    } else if (param.type is InterfaceType) {
+    if (param.type is InterfaceType) {
       final interfaceType = param.type as InterfaceType;
-      if (interfaceType.element.name == 'List') {
+      final typeName = interfaceType.element.name;
+      if (typeName == 'Widget' || _typeIsFlutterWidget(param.type)) {
+        isChildWidget = true;
+      } else if (typeName == 'List') {
         final typeArgs = interfaceType.typeArguments;
         if (typeArgs.isNotEmpty) {
-          final argElement = typeArgs.first.element;
-          if (argElement?.name == 'LuaWidgetInterface') {
+          final argType = typeArgs.first;
+          final argElement = argType.element;
+          if (argElement?.name == 'Widget' || _typeIsFlutterWidget(argType)) {
             isChildList = true;
           } else if (argElement?.name == 'String') {
             isStringList = true;
           } else if (argElement is ClassElement) {
             for (final annotation in argElement.metadata.annotations) {
-              final typeName =
+              final annName =
                   annotation.computeConstantValue()?.type?.getDisplayString();
-              if (typeName == 'LuaWidget') {
+              if (annName == 'LuaWidget') {
                 isChildList = true;
                 nestedClassName = argElement.name;
               }
             }
+            // Concrete Widget subclasses in List<MyWidget>
+            if (!isChildList && _isFlutterWidget(argElement)) {
+              isChildList = true;
+              nestedClassName = argElement.name;
+            }
           }
         }
+      } else if (typeElement is ClassElement && _isFlutterWidget(typeElement)) {
+        isChildWidget = true;
+        nestedClassName = typeElement.name;
       }
     }
 
@@ -294,6 +313,21 @@ class AnnotationParser {
         nonNullType.startsWith('GlobalKey<') ||
         nonNullType.startsWith('ValueKey<') ||
         nonNullType.startsWith('PageStorageKey<');
+  }
+
+  /// Whether [element] is a Flutter [Widget] (or subclass).
+  bool _isFlutterWidget(ClassElement element) {
+    if (element.name == 'Widget') return true;
+    for (final type in element.allSupertypes) {
+      if (type.element.name == 'Widget') return true;
+    }
+    return false;
+  }
+
+  bool _typeIsFlutterWidget(DartType type) {
+    final element = type.element;
+    if (element is ClassElement) return _isFlutterWidget(element);
+    return false;
   }
 
   String _rustTypeFor({
