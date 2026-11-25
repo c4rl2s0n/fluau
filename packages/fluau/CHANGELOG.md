@@ -1,3 +1,9 @@
+## 0.1.3
+
+- `fluau.yaml` is optional for `dart run fluau:bootstrap` (built-in defaults when
+  missing); warn when `frb_plugin_import` is still the placeholder.
+- Document the config starter in Getting Started and `docs/host/FLUAU_YAML.md`.
+
 ## 0.1.2
 
 - Ship Agent Skills under `skills/` for consumers (`dart run skills@ get`).
