@@ -58,8 +58,8 @@ flutter_rust_bridge_codegen generate
 Then:
 
 ```dart
-await RustLib.init();
-LuaPluginBridge.bind(FrbLuaPluginBridge()); // stamped adapter
+await RustLib.init(); // runs #[frb(init)] → fluau::setup on the Rust side
+LuaPluginBridge.bind(FrbLuaPluginBridge()); // required stamped adapter
 await PluginRegistryLoader.registerPackages([...]);
 // LuaPlugin(pluginId: '...', buildWidget: YourRegistry.buildFromMap, ...)
 ```
