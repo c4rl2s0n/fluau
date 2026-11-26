@@ -1,3 +1,18 @@
+## 0.1.8
+
+- Dotted `@LuaWidget` names nest as `ui.layout.column` (Rust tables + Luau
+  stubs). JSON / Dart registry type id stays the full dotted string.
+
+## 0.1.7
+
+- Self-contained `lua_engine.rs`: inline catalog state/callbacks (no
+  `crate::state` / `crate::callbacks`); `register_ui_catalog()` →
+  `fluau::set_ui_setup`.
+- Best-effort `pub mod lua_engine;` in `lib.rs` and Cargo `mlua` /
+  `serde_json`. Stops regenerating FRB junk in `api/lua.rs` (retires to a
+  pointer comment).
+- Docs: one-liner for `#[frb(init)]`; HostAPI vs UI split.
+
 ## 0.1.6
 
 - `@LuaWidget` classes must extend Flutter `Widget`. Registry / deserialize

@@ -15,7 +15,7 @@ description: >-
 * `render()` **must** return a JSON **string** produced by `ui.*` constructors. Returning a plain Lua table fails with `render() must return a widget (JSON string from ui.*)`.
 * Entrypoints: `render()` required for UI sessions; `on_event` / `flush_state` / `init` / `on_host_result` optional; `dispatch(method, args)` required only when the host calls a capability.
 * Sessions start with a host-sent `{ type = "bootstrap" }` event — handle or ignore in `on_event`.
-* `ui.*` constructors only exist after the host runs `fluau_codegen` and registers `SetupOptions.ui_setup` (`fluau-ui-catalog` / `fluau-integrate-host`).
+* `ui.*` constructors only exist after the host runs `fluau_codegen` and registers the catalog (`register_ui_catalog()` or `SetupOptions.ui_setup`) — see `fluau-ui-catalog` / `fluau-integrate-host`.
 * Declare host API needs in `plugin.yaml`. Use the compact schema below; host entries may be a string id or a single-key map (`http: { domains: [...] }`, `optional: true`) — do not invent undocumented keys.
 * Prefer the minimal example below (or the monorepo `counter` package) over inventing a new layout.
 * Stay inside the host UI vocabulary; new controls require a host catalog change (`fluau-ui-catalog`), not a plugin-local hack.

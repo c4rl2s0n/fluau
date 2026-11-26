@@ -35,13 +35,32 @@ and to `frb_version` in [`fluau.yaml`](FLUAU_YAML.md) when you set one.
 ## Runtime setup
 
 `fluau::setup(SetupOptions { ... })` is **Rust-only** — it is not FRB-exported
-and Dart never calls it. Call it once before starting plugin sessions. Pass
-`ui_setup: Some(lua_engine::setup_lua_api)` so each Lua session installs the
-host UI catalog.
+and Dart never calls it. Call it once before starting plugin sessions.
+
+**HostAPIs vs UI catalog stay separable.** HostAPIs change rarely; the UI module
+regenerates often. Prefer one `#[frb(init)]` with either:
+
+```rust
+#[flutter_rust_bridge::frb(init)]
+pub fn init_app() {
+    flutter_rust_bridge::setup_default_user_utils();
+    // After setup with ui_setup: None, or when you only need the catalog:
+    let _ = crate::lua_engine::register_ui_catalog();
+}
+```
+
+or pass `ui_setup: Some(crate::lua_engine::setup_lua_api)` inside `fluau::setup`
+(then skip `register_ui_catalog`). `setup` **clears** UI first — if
+`ui_setup` is `None`, call `register_ui_catalog()` **after** `setup`.
+
+Without registration, Lua gets an **empty** `ui` table — plugins fail on
+`ui.Column` / etc. Run [`fluau_codegen`](../codegen/WHEN_TO_RUN.md) then wire
+the one-liner (or `ui_setup`). See [UI catalog](UI_CATALOG.md) for the
+Lua→JSON→Widget path.
 
 In the example, a `#[frb(init)]` hook runs `ensure_runtime()` during
-`RustLib.init()`, which calls `setup` behind a `Once`. Plugin FRB entry points
-may call the same `ensure` again; it stays idempotent.
+`RustLib.init()`, which calls `setup` (with `ui_setup`) behind a `Once`.
+Plugin FRB entry points may call the same `ensure` again; it stays idempotent.
 
 `dart run fluau:bootstrap` stamps `lib/fluau/fluau_bridge.g.dart` by default
 (override via `fluau.yaml` `dart.lua_root` / `dart.bridge_adapter`). Import
@@ -51,11 +70,7 @@ may call the same `ensure` again; it stays idempotent.
 `bind(LuaPluginBridge.instance)` — that reads the unbound singleton and throws
 `StateError`. After a correct bind, `instance` forwards to FRB.
 
-Without `ui_setup`, Lua gets an **empty** `ui` table — run
-[`fluau_codegen`](../codegen/WHEN_TO_RUN.md) and pass
-`ui_setup: Some(lua_engine::setup_lua_api)`.
-
-**Versions:** Dart `fluau: ^0.1.9` with crates.io `fluau = "0.1"` (currently
+**Versions:** Dart `fluau: ^0.1.11` with crates.io `fluau = "0.1"` (currently
 0.1.0) is supported — patch numbers need not match within `0.1`.
 
 <!-- fluau:include-begin id="bootstrap-bind" -->

@@ -58,13 +58,13 @@ export type SelectProps = {
 }
 
 declare ui: {
-  Column: (props: ColumnProps) -> Widget,
-  TextField: (props: TextFieldProps) -> Widget,
   Button: (props: ButtonProps) -> Widget,
+  Column: (props: ColumnProps) -> Widget,
   Expander: (props: ExpanderProps) -> Widget,
-  Text: (props: TextProps) -> Widget,
-  Switch: (props: SwitchProps) -> Widget,
   Select: (props: SelectProps) -> Widget,
+  Switch: (props: SwitchProps) -> Widget,
+  Text: (props: TextProps) -> Widget,
+  TextField: (props: TextFieldProps) -> Widget,
   getState: (key: string) -> string?,
   setState: (key: string, value: string) -> (),
   getAllState: () -> string,

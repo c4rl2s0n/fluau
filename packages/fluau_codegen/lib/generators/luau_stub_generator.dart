@@ -78,7 +78,8 @@ class LuauStubGenerator {
   void _writeWidgetPropTypes(StringBuffer buffer, List<LuaClassInfo> widgets) {
     for (final widget in widgets) {
       for (final ctor in widget.constructors) {
-        buffer.writeln('export type ${ctor.luaName}Props = {');
+        final propsName = propsTypeName(ctor.luaName);
+        buffer.writeln('export type $propsName = {');
         for (final prop in ctor.parameters) {
           buffer.writeln(
             '  ${prop.name}: ${_luauType(prop)}${_optionalSuffix(prop)},',
@@ -91,20 +92,42 @@ class LuauStubGenerator {
   }
 
   void _writeUiDeclare(StringBuffer buffer, List<LuaClassInfo> widgets) {
-    buffer.writeln('declare ui: {');
+    final root = _NsNode();
     for (final widget in widgets) {
       for (final ctor in widget.constructors) {
-        buffer.writeln(
-          '  ${ctor.luaName}: (props: ${ctor.luaName}Props) -> Widget,',
-        );
+        final parts = ctor.luaName.split('.');
+        var node = root;
+        for (var i = 0; i < parts.length - 1; i++) {
+          node = node.child(parts[i]);
+        }
+        node.leaves[parts.last] = ctor.luaName;
       }
     }
+
+    buffer.writeln('declare ui: {');
+    _writeNsNode(buffer, root, indent: 1);
     buffer.writeln('  getState: (key: string) -> string?,');
     buffer.writeln('  setState: (key: string, value: string) -> (),');
     buffer.writeln('  getAllState: () -> string,');
     buffer.writeln('  registerCallback: (callback: (...any) -> ()) -> (),');
     buffer.writeln('}');
     buffer.writeln();
+  }
+
+  void _writeNsNode(StringBuffer buffer, _NsNode node, {required int indent}) {
+    final pad = '  ' * indent;
+    final keys = [...node.children.keys, ...node.leaves.keys]..sort();
+    for (final key in keys) {
+      if (node.children.containsKey(key)) {
+        buffer.writeln('$pad$key: {');
+        _writeNsNode(buffer, node.children[key]!, indent: indent + 1);
+        buffer.writeln('$pad},');
+      } else {
+        final fullName = node.leaves[key]!;
+        final props = propsTypeName(fullName);
+        buffer.writeln('$pad$key: (props: $props) -> Widget,');
+      }
+    }
   }
 
   String _optionalSuffix(PropertyInfo prop) {
@@ -133,4 +156,31 @@ class LuauStubGenerator {
 
     return 'any';
   }
+}
+
+/// Props type for a Lua ctor name.
+///
+/// Flat: `Text` → `TextProps`, `Text_styled` → `Text_styledProps`.
+/// Dotted: `layout.column` → `LayoutColumnProps`.
+String propsTypeName(String luaName) {
+  if (!luaName.contains('.')) {
+    return '${luaName}Props';
+  }
+  final buf = StringBuffer();
+  for (final segment in luaName.split('.')) {
+    for (final part in segment.split('_')) {
+      if (part.isEmpty) continue;
+      buf.write(part[0].toUpperCase());
+      if (part.length > 1) buf.write(part.substring(1));
+    }
+  }
+  buf.write('Props');
+  return buf.toString();
+}
+
+class _NsNode {
+  final Map<String, _NsNode> children = {};
+  final Map<String, String> leaves = {};
+
+  _NsNode child(String name) => children.putIfAbsent(name, _NsNode.new);
 }

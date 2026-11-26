@@ -1,3 +1,14 @@
+## 0.1.11
+
+- Docs/skills: dotted `@LuaWidget` names → nested `ui.layout.column`.
+- Align with `fluau_codegen` 0.1.8.
+
+## 0.1.10
+
+- Docs/skills: HostAPI vs UI split; Lua→JSON→Widget path; required
+  `register_ui_catalog()` one-liner (or `ui_setup` in `fluau::setup`).
+- Align with `fluau_codegen` 0.1.7.
+
 ## 0.1.9
 
 - **Breaking:** remove `LuaWidgetInterface`. Catalog entries are Flutter

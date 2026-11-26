@@ -3,7 +3,6 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
-import 'api/lua.dart';
 import 'api/plugin.dart';
 import 'api/simple.dart';
 import 'dart:async';
@@ -58,7 +57,6 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   @override
   Future<void> executeRustInitializers() async {
     await api.crateApiSimpleInitApp();
-    await api.crateApiLuaInitLua();
   }
 
   @override
@@ -69,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -716999654;
+  int get rustContentHash => -1228293657;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -87,17 +85,11 @@ abstract class RustLibApi extends BaseApi {
     required String argsJson,
   });
 
-  String crateApiLuaGetAllLuaState();
-
-  String crateApiLuaGetLuaState({required String key});
-
   PluginManifest crateApiPluginGetPlugin({required String pluginId});
 
   String crateApiSimpleGreet({required String name});
 
   Future<void> crateApiSimpleInitApp();
-
-  Future<void> crateApiLuaInitLua();
 
   List<HostApiInfo> crateApiPluginListHostApiInfo();
 
@@ -125,10 +117,6 @@ abstract class RustLibApi extends BaseApi {
   });
 
   String crateApiPluginRenderPlugin({required String pluginId});
-
-  String crateApiLuaRunLuaUiScript({required String script});
-
-  void crateApiLuaSetLuaState({required String key, required String value});
 
   void crateApiPluginStartPlugin({
     required String pluginId,
@@ -190,58 +178,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  String crateApiLuaGetAllLuaState() {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_String,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiLuaGetAllLuaStateConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiLuaGetAllLuaStateConstMeta =>
-      const TaskConstMeta(debugName: "get_all_lua_state", argNames: []);
-
-  @override
-  String crateApiLuaGetLuaState({required String key}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(key, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_String,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiLuaGetLuaStateConstMeta,
-        argValues: [key],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiLuaGetLuaStateConstMeta =>
-      const TaskConstMeta(debugName: "get_lua_state", argNames: ["key"]);
-
-  @override
   PluginManifest crateApiPluginGetPlugin({required String pluginId}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(pluginId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_plugin_manifest,
@@ -264,7 +207,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(name, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -289,7 +232,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 4,
             port: port_,
           );
         },
@@ -308,39 +251,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
-  Future<void> crateApiLuaInitLua() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 7,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiLuaInitLuaConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiLuaInitLuaConstMeta =>
-      const TaskConstMeta(debugName: "init_lua", argNames: []);
-
-  @override
   List<HostApiInfo> crateApiPluginListHostApiInfo() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_host_api_info,
@@ -362,7 +278,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_plugin_manifest,
@@ -387,7 +303,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 7,
             port: port_,
           );
         },
@@ -416,7 +332,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(pluginId, serializer);
           sse_encode_String(capability, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -451,7 +367,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 9,
             port: port_,
           );
         },
@@ -481,7 +397,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 10,
             port: port_,
           );
         },
@@ -515,7 +431,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_box_autoadd_plugin_manifest(manifest, serializer);
           sse_encode_String(scriptSource, serializer);
           sse_encode_list_plugin_module(modules, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -541,7 +457,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(pluginId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -558,55 +474,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "render_plugin", argNames: ["pluginId"]);
 
   @override
-  String crateApiLuaRunLuaUiScript({required String script}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(script, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_String,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiLuaRunLuaUiScriptConstMeta,
-        argValues: [script],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiLuaRunLuaUiScriptConstMeta =>
-      const TaskConstMeta(debugName: "run_lua_ui_script", argNames: ["script"]);
-
-  @override
-  void crateApiLuaSetLuaState({required String key, required String value}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(key, serializer);
-          sse_encode_String(value, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiLuaSetLuaStateConstMeta,
-        argValues: [key, value],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiLuaSetLuaStateConstMeta => const TaskConstMeta(
-    debugName: "set_lua_state",
-    argNames: ["key", "value"],
-  );
-
-  @override
   void crateApiPluginStartPlugin({
     required String pluginId,
     required String script,
@@ -617,7 +484,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(pluginId, serializer);
           sse_encode_String(script, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -642,7 +509,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(pluginId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -672,7 +539,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(pluginId, serializer);
           sse_encode_box_autoadd_plugin_grants(grants, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -698,7 +565,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(pluginId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,

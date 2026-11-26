@@ -11,13 +11,13 @@ description: >-
 
 * Always start from an **existing** FRB (or equivalent) app. Do not scaffold FRB from zero here.
 * Call `fluau::setup(SetupOptions { ... })` **once from Rust** at process start (before plugin sessions). It is **not** FRB-exported — Dart never calls `setup()`. Typical pattern: `#[frb(init)]` hook → `ensure_runtime()` → `setup(...)`, which FRB runs during `RustLib.init()`.
-* Pass `ui_setup: Some(lua_engine::setup_lua_api)` (from `fluau_codegen`). Without it, Lua gets an **empty** `ui` table.
+* **HostAPIs vs UI stay separable.** After codegen, register the UI catalog with **one line** in the same `#[frb(init)]`: `let _ = crate::lua_engine::register_ui_catalog();`. Or pass `ui_setup: Some(crate::lua_engine::setup_lua_api)` inside `setup` and skip that line. `setup` clears UI first — if `ui_setup` is `None`, call `register_ui_catalog` **after** `setup`. **Without registration, Lua gets an empty `ui` table.**
 * `dart run fluau:bootstrap` stamps `lib/fluau/fluau_bridge.g.dart` (via `dart.lua_root`) → import `package:<pubspec.name>/fluau/fluau_bridge.g.dart`. Always `LuaPluginBridge.bind(FrbLuaPluginBridge())` after `RustLib.init()`. **Never** `bind(LuaPluginBridge.instance)` — that throws `StateError`.
 * Always pass a host-owned `buildWidget` into `LuaPlugin` / `LuaPluginView` — fluau ships **no** default UI catalog; import `lib/fluau/widget_serializers.g.dart` and use generated `LuaWidgetRegistry.buildFromMap`.
 * Always persist permission decisions with a `PluginGrantStore` (memory is ephemeral; prefer a custom or file store for real apps).
 * Use `dart run fluau:bootstrap` to stamp glue (`fluau.yaml` optional). Then run `flutter_rust_bridge_codegen generate` when FRB APIs change.
 * For `build.rs` stub emission, add crates.io `fluau` with `stub-gen` in `build-dependencies`.
-* Version pairing: Dart `fluau: ^0.1.9` + crates `fluau = "0.1"` (crates.io may still be 0.1.0) is supported — patch numbers need not match.
+* Version pairing: Dart `fluau: ^0.1.11` + crates `fluau = "0.1"` (crates.io may still be 0.1.0) is supported — patch numbers need not match.
 
 Docs: [Integration](https://github.com/c4rl2s0n/fluau/blob/main/docs/host/INTEGRATION.md),
 [fluau.yaml](https://github.com/c4rl2s0n/fluau/blob/main/docs/host/FLUAU_YAML.md),
@@ -26,7 +26,18 @@ Docs: [Integration](https://github.com/c4rl2s0n/fluau/blob/main/docs/host/INTEGR
 
 ## Examples
 
-### Rust runtime setup (not FRB-exported)
+### #[frb(init)] — UI one-liner (after setup with ui_setup: None)
+
+```rust
+#[flutter_rust_bridge::frb(init)]
+pub fn init_app() {
+    flutter_rust_bridge::setup_default_user_utils();
+    // ... fluau::setup(SetupOptions { ui_setup: None, host_apis: ..., ... }) ...
+    let _ = crate::lua_engine::register_ui_catalog();
+}
+```
+
+### Rust runtime setup with UI inside setup
 
 ```rust
 // Called from #[frb(init)] during RustLib.init(), or an equivalent Once guard.

@@ -9,7 +9,7 @@ Rust UI builders, and Luau stubs aligned.
 
 ```yaml
 dev_dependencies:
-  fluau_codegen: ^0.1.6
+  fluau_codegen: ^0.1.8
 ```
 
 ## Default: generate everything
@@ -27,8 +27,12 @@ Paths resolve as **CLI flags > fluau.yaml > built-in defaults**
 Writes:
 
 - `lib/fluau/widget_serializers.g.dart` (or `dart.lua_root`) — standalone library
-- `lua_engine.rs`, `api/lua.rs`, `ui.d.luau`
-- capability `*.g.dart` parts + `capabilities.d.luau`
+- self-contained `lua_engine.rs` (`register_ui_catalog` / `setup_lua_api`)
+- `ui.d.luau`, capability `*.g.dart` parts + `capabilities.d.luau`
+
+Also ensures `pub mod lua_engine;` and Cargo `mlua` / `serde_json`. Call
+`crate::lua_engine::register_ui_catalog()` from `#[frb(init)]` (or pass
+`ui_setup` to `fluau::setup`).
 
 The Lua surface is each public generative constructor’s parameters
 (unnamed → `ui.Text`; named `styled` → `ui.Text_styled`).
