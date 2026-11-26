@@ -2,7 +2,7 @@ name: fluau_codegen
 description: >-
   Code generator for fluau — CLI that emits Dart serializers, Rust UI glue, and
   Luau stubs for @LuaWidget / @LuaCapability.
-version: 0.1.10
+version: 0.1.11
 homepage: https://github.com/c4rl2s0n/fluau
 repository: https://github.com/c4rl2s0n/fluau
 issue_tracker: https://github.com/c4rl2s0n/fluau/issues
@@ -21,6 +21,9 @@ dependencies:
   dart_style: ^3.1.12
   path: ^1.8.0
   yaml: ^3.1.0
+
+dev_dependencies:
+  test: ^1.25.0
 
 executables:
   fluau_codegen: fluau_codegen

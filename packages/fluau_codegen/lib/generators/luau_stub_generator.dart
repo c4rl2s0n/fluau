@@ -16,6 +16,15 @@ class LuauStubGenerator {
     _writeHeader(buffer);
 
     buffer.writeln('export type EventPayload = { [string]: any }');
+    buffer.writeln(
+      '-- Callback props: event payload table, or a Lua function (runtime registers',
+    );
+    buffer.writeln(
+      '-- a reserved `{ type = "action", id }` payload; do not emit type "action" by hand).',
+    );
+    buffer.writeln(
+      'export type UiCallback = EventPayload | ((event: EventPayload) -> any)',
+    );
     buffer.writeln('export type Widget = string');
     buffer.writeln();
 
@@ -140,7 +149,12 @@ class LuauStubGenerator {
     buffer.writeln('  getState: (key: string) -> string?,');
     buffer.writeln('  setState: (key: string, value: string) -> (),');
     buffer.writeln('  getAllState: () -> string,');
-    buffer.writeln('  registerCallback: (callback: (...any) -> ()) -> (),');
+    buffer.writeln(
+      '  -- Registers fn for this render; returns payload (optional extra fields).',
+    );
+    buffer.writeln(
+      '  action: (fn: (event: EventPayload) -> any, extra: EventPayload?) -> EventPayload,',
+    );
     buffer.writeln('}');
     buffer.writeln();
   }
@@ -168,7 +182,7 @@ class LuauStubGenerator {
   }
 
   String _luauType(PropertyInfo prop) {
-    if (prop.isCallback) return 'EventPayload';
+    if (prop.isCallback) return 'UiCallback';
     if (prop.isChildWidget) return 'Widget';
     if (prop.isChildList) return '{Widget}';
     if (prop.isStringList) return '{string}';

@@ -15,8 +15,109 @@ import 'package:analyzer/dart/element/type.dart';
 
 import '../models/widget_info.dart';
 
+/// Thrown when a `@LuaWidget` constructor parameter uses an unsupported type
+/// (e.g. a Dart function/closure instead of an event payload map).
+class LuaWidgetCodegenException implements Exception {
+  LuaWidgetCodegenException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class AnnotationParser {
   AnnotationParser();
+
+  /// Error text when a `@LuaWidget` param is a Dart function/closure.
+  static String closureParamError({
+    required String className,
+    required String paramName,
+    required String dartType,
+  }) {
+    return '@LuaWidget parameter `$paramName` on `$className` cannot be a '
+        'Dart function/closure (got `$dartType`). Fluau cannot pass live '
+        'callbacks across the Lua↔Flutter bridge. Use `Map<String, dynamic>?` '
+        '(event payload) and dispatch via `PluginEventScope.dispatch` from the '
+        'widget; handle it in Lua `on_event`, or pass a Lua function that the '
+        'runtime registers as a reserved `action` event.';
+  }
+
+  /// Error text when `@LuaCallback` is applied to a non-map type.
+  static String luaCallbackNonMapError({
+    required String className,
+    required String paramName,
+    required String dartType,
+  }) {
+    return '@LuaCallback on `$className.$paramName` requires '
+        '`LuaEventPayload` / `Map<String, dynamic>` (event payload), '
+        'got `$dartType`.';
+  }
+
+  /// Whether [dartType] / flags represent an unsupported Dart callable.
+  static bool isUnsupportedClosureType({
+    required String dartType,
+    required bool isFunctionType,
+    required bool isTypedefToFunction,
+  }) {
+    if (isFunctionType || isTypedefToFunction) return true;
+    final nonNull =
+        dartType.endsWith('?') ? dartType.substring(0, dartType.length - 1) : dartType;
+    if (nonNull == 'Function' ||
+        nonNull == 'VoidCallback' ||
+        nonNull.startsWith('Function(') ||
+        nonNull.contains(' Function(') ||
+        nonNull.startsWith('ValueChanged<') ||
+        nonNull.startsWith('ValueSetter<') ||
+        nonNull.startsWith('FormFieldSetter<')) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Display-string check for event payload maps (`Map<String,…>` / `LuaEventPayload`).
+  static bool isEventPayloadMapDisplay(String dartType) {
+    final nonNull =
+        dartType.endsWith('?') ? dartType.substring(0, dartType.length - 1) : dartType;
+    if (nonNull == 'LuaEventPayload') return true;
+    if (nonNull == 'Map<String, dynamic>' || nonNull.startsWith('Map<String,')) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Validates callback-related ctor params; throws [LuaWidgetCodegenException].
+  static void validateCallbackParam({
+    required String className,
+    required String paramName,
+    required String dartType,
+    required bool isFunctionType,
+    required bool isTypedefToFunction,
+    String? annotationKind,
+    required bool isEventPayloadMap,
+  }) {
+    if (isUnsupportedClosureType(
+      dartType: dartType,
+      isFunctionType: isFunctionType,
+      isTypedefToFunction: isTypedefToFunction,
+    )) {
+      throw LuaWidgetCodegenException(
+        closureParamError(
+          className: className,
+          paramName: paramName,
+          dartType: dartType,
+        ),
+      );
+    }
+    if (annotationKind == 'LuaCallback' && !isEventPayloadMap) {
+      throw LuaWidgetCodegenException(
+        luaCallbackNonMapError(
+          className: className,
+          paramName: paramName,
+          dartType: dartType,
+        ),
+      );
+    }
+  }
 
   Future<WidgetParseResult> parseDirectory(String dirPath) async {
     final dir = Directory(dirPath);
@@ -45,6 +146,8 @@ class AnnotationParser {
         for (final e in parsed.enums) {
           enumsByDart.putIfAbsent(e.dartName, () => e);
         }
+      } on LuaWidgetCodegenException {
+        rethrow;
       } catch (e) {
         print('Warning: Failed to parse $filePath: $e');
       }
@@ -189,7 +292,7 @@ class AnnotationParser {
 
       final params = <PropertyInfo>[];
       for (final param in ctor.formalParameters) {
-        final prop = _parseParameter(param);
+        final prop = _parseParameter(param, className: className);
         if (prop != null) params.add(prop);
       }
 
@@ -231,7 +334,10 @@ class AnnotationParser {
     );
   }
 
-  PropertyInfo? _parseParameter(FormalParameterElement param) {
+  PropertyInfo? _parseParameter(
+    FormalParameterElement param, {
+    required String className,
+  }) {
     final rawName = param.name;
     if (rawName == null || rawName.isEmpty || rawName.startsWith('_')) {
       return null;
@@ -258,6 +364,20 @@ class AnnotationParser {
         break;
       }
     }
+
+    final isEventPayloadMap = _isEventPayloadMap(param.type);
+    final isFunctionType = param.type is FunctionType;
+    final isTypedefToFunction = _isTypedefToFunction(param.type);
+
+    validateCallbackParam(
+      className: className,
+      paramName: rawName,
+      dartType: dartType,
+      isFunctionType: isFunctionType,
+      isTypedefToFunction: isTypedefToFunction,
+      annotationKind: annotationKind,
+      isEventPayloadMap: isEventPayloadMap,
+    );
 
     final isNullable = dartType.endsWith('?');
     final hasDefault = param.hasDefaultValue;
@@ -336,9 +456,7 @@ class AnnotationParser {
     }
 
     // Infer callback: Map<String, dynamic>
-    if (!isCallback &&
-        (nonNullType == 'Map<String, dynamic>' ||
-            nonNullType.startsWith('Map<String,'))) {
+    if (!isCallback && isEventPayloadMap) {
       isCallback = true;
     }
 
@@ -380,6 +498,39 @@ class AnnotationParser {
       typeSourceFile: typeSourceFile,
       nestedClassName: nestedClassName,
     );
+  }
+
+  bool _isTypedefToFunction(DartType type) {
+    final alias = type.alias;
+    if (alias == null) return false;
+    return alias.element.aliasedType is FunctionType;
+  }
+
+  /// True for `Map<String, …>`, `LuaEventPayload`, or typedefs that alias to those.
+  bool _isEventPayloadMap(DartType type) {
+    if (isEventPayloadMapDisplay(type.getDisplayString())) return true;
+    if (_isStringKeyedMapType(type)) return true;
+
+    final alias = type.alias;
+    if (alias != null) {
+      final aliased = alias.element.aliasedType;
+      if (isEventPayloadMapDisplay(aliased.getDisplayString())) return true;
+      if (_isStringKeyedMapType(aliased)) return true;
+      final aliasName = alias.element.name;
+      if (aliasName == 'LuaEventPayload') return true;
+    }
+    return false;
+  }
+
+  bool _isStringKeyedMapType(DartType type) {
+    if (type is! InterfaceType) return false;
+    if (type.element.name != 'Map') return false;
+    if (type.typeArguments.isEmpty) return false;
+    final keyDisplay = type.typeArguments.first.getDisplayString();
+    final keyNonNull = keyDisplay.endsWith('?')
+        ? keyDisplay.substring(0, keyDisplay.length - 1)
+        : keyDisplay;
+    return keyNonNull == 'String';
   }
 
   bool _isFlutterKeyType(String nonNullType) {

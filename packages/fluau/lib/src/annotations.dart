@@ -146,10 +146,15 @@ class LuaChildren {
 
 /// Optional rename for an event-payload constructor parameter.
 ///
-/// Usually unnecessary: `Map<String, dynamic>` params are inferred as
-/// callbacks. The property type should be `Map<String, dynamic>?`.
-/// Lua supplies a table (e.g. `{ type = "login" }`) which is embedded in the
-/// UI JSON snapshot. Flutter dispatches that map via [PluginEventScope].
+/// Usually unnecessary: `LuaEventPayload` (or `Map<String, dynamic>`) params
+/// are inferred as callbacks. Prefer `LuaEventPayload?`. Dart `Function` /
+/// `VoidCallback` params fail codegen loudly (live closures cannot cross the
+/// Lua↔Flutter bridge).
+///
+/// Lua may pass a table (e.g. `{ type = "login" }`) **or** a function; the
+/// runtime turns functions into reserved `{ type = "action", id }` payloads.
+/// Flutter dispatches via `PluginEventScope.dispatch` or
+/// `PluginEventScope.luaEventHandler`.
 ///
 /// Example:
 /// ```dart
@@ -162,7 +167,7 @@ class LuaChildren {
 /// ```lua
 /// ui.Button {
 ///   text = "Login",
-///   onPressed = { type = "login" }
+///   onPressed = function() end, -- or { type = "login" }
 /// }
 /// ```
 class LuaCallback {

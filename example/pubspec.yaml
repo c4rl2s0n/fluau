@@ -74,8 +74,10 @@ flutter:
   assets:
     # Directory entries are not recursive — list each folder that holds files.
     - assets/plugins/counter/
+    - assets/plugins/echo_form/
     # Explicit yaml manifests (also covered by directory entries above).
     - assets/plugins/counter/plugin.yaml
+    - assets/plugins/echo_form/plugin.yaml
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

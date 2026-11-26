@@ -13,7 +13,7 @@ Sandboxed Luau plugin runtime for Flutter hosts. Pair with the
 
 With `runtime`, this crate also re-exports **`mlua`** and **`serde_json`**
 (`fluau::mlua`, `fluau::serde_json`) so generated `lua_engine` (and HostAPIs)
-do not need separate Cargo entries for those crates. Prefer **0.1.1+** for
+do not need separate Cargo entries for those crates. Prefer **0.1.2+** for
 that surface.
 
 ## Usage

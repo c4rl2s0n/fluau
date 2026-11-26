@@ -1,4 +1,5 @@
--- Classic counter: pure Lua state, no host permissions or capabilities.
+-- Classic counter: pure Lua state; button handlers are Lua functions
+-- (runtime registers reserved `action` events — no on_event required).
 local count = 0
 
 function render()
@@ -8,20 +9,24 @@ function render()
     children = {
       ui.Text { text = "Counter", size = enums.TextSize.large, weight = enums.FontWeightPreset.bold },
       ui.Text { text = "Count: " .. tostring(count), size = enums.TextSize.large, color = enums.TextColor.primary },
-      ui.Button { text = "Increment (+1)", onPressed = { type = "increment" } },
-      ui.Button { text = "Decrement (-1)", onPressed = { type = "decrement" } },
-      ui.Button { text = "Reset", onPressed = { type = "reset" } },
+      ui.Button {
+        text = "Increment (+1)",
+        onPressed = function()
+          count = count + 1
+        end,
+      },
+      ui.Button {
+        text = "Decrement (-1)",
+        onPressed = function()
+          count = count - 1
+        end,
+      },
+      ui.Button {
+        text = "Reset",
+        onPressed = function()
+          count = 0
+        end,
+      },
     },
   }
-end
-
-function on_event(event)
-  if event.type == "increment" then
-    count = count + 1
-  elseif event.type == "decrement" then
-    count = count - 1
-  elseif event.type == "reset" then
-    count = 0
-  end
-  return {}
 end

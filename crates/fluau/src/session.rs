@@ -208,7 +208,8 @@ pub fn render_plugin(plugin_id: &str) -> Result<String, String> {
     with_session(plugin_id, |lua| call_render(plugin_id, lua))
 }
 
-/// Deliver a UI event JSON object to `on_event`, drain host intents, re-render.
+/// Deliver a UI event JSON object to `on_event` (or a reserved `action`), drain
+/// host intents, re-render.
 pub fn plugin_on_event(
     plugin_id: &str,
     event_json: &str,
@@ -222,8 +223,23 @@ pub fn plugin_on_event(
             with_session(plugin_id, |lua| call_flush_state(plugin_id, lua, trimmed))?;
         }
     }
-    let intents =
-        with_session(plugin_id, |lua| call_handler(plugin_id, lua, "on_event", event_json))?;
+
+    let event: JsonValue = serde_json::from_str(event_json).map_err(|e| {
+        plugin_err(
+            plugin_id,
+            "on_event",
+            format!("invalid event JSON: {e}"),
+        )
+    })?;
+
+    let intents = with_session(plugin_id, |lua| {
+        if let Some(action_intents) = crate::actions::try_invoke_action(lua, &event)
+            .map_err(|e| plugin_err(plugin_id, "action", e))?
+        {
+            return Ok(action_intents);
+        }
+        call_handler(plugin_id, lua, "on_event", event_json)
+    })?;
     drain_host_and_render(plugin_id, &intents)
 }
 
@@ -354,13 +370,40 @@ fn with_session<T>(
 }
 
 fn call_render(plugin_id: &str, lua: &Lua) -> Result<String, String> {
-    let render: Function = lua.globals().get("render").map_err(|_| {
-        plugin_err(plugin_id, "render", "plugin must define render()")
-    })?;
-    let result: Value = render
-        .call(())
+    crate::actions::begin_frame(lua)
         .map_err(|e| plugin_err(plugin_id, "render", e))?;
-    value_to_widget_json(result).map_err(|e| plugin_err(plugin_id, "render", e))
+
+    let render: Function = match lua.globals().get("render") {
+        Ok(f) => f,
+        Err(_) => {
+            crate::actions::discard_frame(lua);
+            return Err(plugin_err(
+                plugin_id,
+                "render",
+                "plugin must define render()",
+            ));
+        }
+    };
+
+    let result: Value = match render.call(()) {
+        Ok(v) => v,
+        Err(e) => {
+            crate::actions::discard_frame(lua);
+            return Err(plugin_err(plugin_id, "render", e));
+        }
+    };
+
+    let widget_json = match value_to_widget_json(result) {
+        Ok(j) => j,
+        Err(e) => {
+            crate::actions::discard_frame(lua);
+            return Err(plugin_err(plugin_id, "render", e));
+        }
+    };
+
+    crate::actions::commit_frame(lua)
+        .map_err(|e| plugin_err(plugin_id, "render", e))?;
+    Ok(widget_json)
 }
 
 fn call_flush_state(plugin_id: &str, lua: &Lua, fields_json: &str) -> Result<(), String> {
@@ -436,6 +479,39 @@ mod tests {
         assert!(err.contains("[err_plugin]"), "{err}");
         assert!(err.contains("render"), "{err}");
         assert!(err.contains("intentional failure"), "{err}");
+        let _ = stop_plugin(id);
+    }
+
+    #[test]
+    fn reserved_action_event_invokes_handler_without_on_event() {
+        diagnostic::install_diagnostic_hooks();
+        let id = "action_plugin";
+        let script = r#"
+            local count = 0
+            function render()
+                ui.action(function()
+                    count = count + 1
+                end)
+                return '{"type":"Text","text":"' .. tostring(count) .. '"}'
+            end
+        "#;
+        start_plugin(
+            id,
+            script,
+            PluginPermissions::default(),
+            PluginGrants::default(),
+        )
+        .expect("start");
+        let first = render_plugin(id).expect("render");
+        assert!(first.contains("\"text\":\"0\""), "{first}");
+
+        let resp = plugin_on_event(id, r#"{"type":"action","id":"a1"}"#, None)
+            .expect("action event");
+        assert!(
+            resp.widget_json.contains("\"text\":\"1\""),
+            "{}",
+            resp.widget_json
+        );
         let _ = stop_plugin(id);
     }
 }

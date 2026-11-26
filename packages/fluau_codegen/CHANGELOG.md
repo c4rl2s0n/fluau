@@ -1,3 +1,12 @@
+## 0.1.11
+
+- Fail loudly when `@LuaWidget` params are Dart functions/`VoidCallback`
+  (use `LuaEventPayload` / `Map<String, dynamic>` instead).
+- Recognize `LuaEventPayload` and map typedef aliases as event-payload callbacks.
+- Generated callback props accept Lua table **or** function (via
+  `fluau::actions`); drop generated `ui.registerCallback`.
+- Luau stubs: `UiCallback`, `ui.action`.
+
 ## 0.1.10
 
 - Emit `enums.<Name>` value tables (Rust + Luau) for host Dart enums; optional

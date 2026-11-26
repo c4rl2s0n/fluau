@@ -19,6 +19,7 @@ Future<void> main() async {
 
   await PluginRegistryLoader.registerPackages(const [
     'assets/plugins/counter',
+    'assets/plugins/echo_form',
   ]);
   runApp(const MyApp());
 }

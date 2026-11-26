@@ -8,6 +8,8 @@
 #![cfg_attr(not(feature = "runtime"), allow(unused_imports))]
 
 #[cfg(feature = "runtime")]
+pub mod actions;
+#[cfg(feature = "runtime")]
 pub mod diagnostic;
 #[cfg(feature = "runtime")]
 pub mod host;
@@ -34,6 +36,13 @@ pub use registry::{
     HostApiPermission, PluginGrants, PluginManifest, PluginModule, PluginPermissions,
     get_modules, get_plugin, get_script, list_plugins, normalize_host_permissions,
     plugin_has_capability, register_plugin, resolve_session_grants, validate_host_api_ids,
+};
+#[cfg(feature = "runtime")]
+pub use actions::{
+    ACTION_EVENT_TYPE, begin_frame as action_begin_frame, callback_to_json,
+    commit_frame as action_commit_frame, discard_frame as action_discard_frame,
+    ensure_registry as action_ensure_registry, install_ui_helpers as action_install_ui_helpers,
+    try_invoke_action,
 };
 #[cfg(feature = "runtime")]
 pub use session::{

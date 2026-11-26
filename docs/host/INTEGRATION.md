@@ -70,7 +70,7 @@ Plugin FRB entry points may call the same `ensure` again; it stays idempotent.
 `bind(LuaPluginBridge.instance)` — that reads the unbound singleton and throws
 `StateError`. After a correct bind, `instance` forwards to FRB.
 
-**Versions:** Dart `fluau: ^0.1.13` with crates.io `fluau = "0.1"` (**0.1.1+**
+**Versions:** Dart `fluau: ^0.1.14` with crates.io `fluau = "0.1"` (**0.1.2+**
 for `fluau::mlua` / `fluau::serde_json` re-exports) is supported — patch
 numbers need not match within `0.1`. Use those re-exports from generated
 `lua_engine` and optional HostAPI code; run `cargo update -p fluau` if a

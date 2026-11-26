@@ -1,3 +1,10 @@
+## 0.1.14
+
+- Add `LuaEventPayload` typedef and `PluginEventScope.luaEventHandler` for
+  catalog callback props.
+- Docs: Lua function callbacks / reserved `action` events; form `flush_state`.
+- Align with `fluau_codegen` 0.1.11 and crates.io `fluau` 0.1.2.
+
 ## 0.1.13
 
 - Add `@LuaEnum` for host-owned enums (`enums.Name.member` in Lua).

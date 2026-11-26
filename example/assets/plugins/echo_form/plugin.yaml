@@ -1,0 +1,4 @@
+id: echo_form
+name: Echo form
+version: 0.1.0
+main: main.lua

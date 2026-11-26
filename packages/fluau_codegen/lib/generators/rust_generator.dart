@@ -2,8 +2,11 @@
 ///
 /// Emits a self-contained `lua_engine.rs`:
 /// - Widget constructors (Lua → JSON string)
-/// - Inline ui.getState / setState / registerCallback helpers
+/// - Inline ui.getState / setState helpers
+/// - Callback props via `fluau::actions::callback_to_json` (table or function)
 /// - `register_ui_catalog()` for `#[frb(init)]` / process start
+///
+/// `ui.action` is installed by `fluau::install_ui` (not duplicated here).
 
 import '../models/widget_info.dart';
 
@@ -49,7 +52,7 @@ class RustGenerator {
   void _writeImports(StringBuffer buffer) {
     // Via fluau re-exports — host needs only `fluau` (runtime), not direct mlua/serde_json.
     buffer.writeln(
-      'use fluau::mlua::{Function, Lua, Result, Table, Value};',
+      'use fluau::mlua::{Lua, Result, Table, Value};',
     );
     buffer.writeln(
       'use fluau::serde_json::{json, Value as JsonValue, Map as JsonMap};',
@@ -113,18 +116,10 @@ class RustGenerator {
     buffer.writeln('    })?)?;');
 
     buffer.writeln();
-    buffer.writeln('    // Callback registration');
-    buffer.writeln(
-      '    ui.set("registerCallback", lua.create_function(|lua, func: Function| {',
-    );
-    buffer.writeln(
-      '        catalog_callbacks::register_callback(lua, func)',
-    );
-    buffer.writeln('            .map_err(|e| fluau::mlua::Error::runtime(e.to_string()))');
-    buffer.writeln('    })?)?;');
-
-    buffer.writeln();
     buffer.writeln('    lua.globals().set("ui", ui)?;');
+    buffer.writeln(
+      '    // ui.action is attached by fluau::install_ui after this setup.',
+    );
 
     if (enums.isNotEmpty) {
       buffer.writeln();
@@ -227,20 +222,26 @@ class RustGenerator {
     final isRequired = prop.required;
 
     if (prop.isCallback) {
-      buffer.writeln('        // Handle $propName (event payload)');
+      buffer.writeln(
+        '        // Handle $propName (event payload table or Lua function → action)',
+      );
       buffer.writeln(
         '        if let Ok(event_value) = args.get::<Option<Value>>("$propName") {',
       );
       buffer.writeln('            if let Some(v) = event_value {');
       buffer.writeln(
-        '                let event_json = fluau::json_util::lua_to_json(v)',
+        '                let event_json = fluau::actions::callback_to_json(lua, v)',
       );
       buffer.writeln(
         '                    .map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;',
       );
       buffer.writeln(
-        '                map.insert("$propName".to_string(), event_json);',
+        '                if !event_json.is_null() {',
       );
+      buffer.writeln(
+        '                    map.insert("$propName".to_string(), event_json);',
+      );
+      buffer.writeln('                }');
       buffer.writeln('            }');
       buffer.writeln('        }');
     } else if (prop.isChildList) {
@@ -396,26 +397,45 @@ class RustGenerator {
     );
     buffer.writeln('    let lua = Lua::new();');
     buffer.writeln('    setup_lua_api(&lua).map_err(|e| e.to_string())?;');
+    buffer.writeln(
+      '    fluau::actions::install_ui_helpers(&lua).map_err(|e| e.to_string())?;',
+    );
+    buffer.writeln(
+      '    fluau::actions::begin_frame(&lua)?;',
+    );
     buffer.writeln();
-    buffer.writeln('    let result: Value = lua');
-    buffer.writeln('        .load(script)');
-    buffer.writeln('        .eval()');
-    buffer.writeln('        .map_err(|e| e.to_string())?;');
+    buffer.writeln('    let result: Value = match lua.load(script).eval() {');
+    buffer.writeln('        Ok(v) => v,');
+    buffer.writeln('        Err(e) => {');
+    buffer.writeln('            fluau::actions::discard_frame(&lua);');
+    buffer.writeln('            return Err(e.to_string());');
+    buffer.writeln('        }');
+    buffer.writeln('    };');
     buffer.writeln();
-    buffer.writeln('    match result {');
+    buffer.writeln('    let out = match result {');
     buffer.writeln(
       '        Value::String(s) => Ok(s.to_string_lossy().to_owned()),',
     );
     buffer.writeln(
       '        _ => Err("Lua script must return a widget (string)".to_string()),',
     );
+    buffer.writeln('    };');
+    buffer.writeln('    match &out {');
+    buffer.writeln(
+      '        Ok(_) => fluau::actions::commit_frame(&lua)?,',
+    );
+    buffer.writeln(
+      '        Err(_) => fluau::actions::discard_frame(&lua),',
+    );
     buffer.writeln('    }');
+    buffer.writeln('    out');
     buffer.writeln('}');
   }
 
   void _writeInlineHelpers(StringBuffer buffer) {
     buffer.writeln(r'''
-/// Inlined catalog helpers (no host `state` / `callbacks` modules required).
+/// Inlined catalog helpers (no host `state` module required).
+/// UI function callbacks use `fluau::actions` (session-scoped).
 mod catalog_state {
     use fluau::serde_json::Value;
     use std::collections::HashMap;
@@ -445,26 +465,6 @@ mod catalog_state {
     pub fn get_all_state() -> Result<String, String> {
         let guard = store().lock().map_err(|e| e.to_string())?;
         fluau::serde_json::to_string(&*guard).map_err(|e| e.to_string())
-    }
-}
-
-mod catalog_callbacks {
-    use fluau::mlua::{Function, Lua, RegistryKey, Result};
-    use std::collections::HashMap;
-    use std::sync::{Mutex, OnceLock};
-
-    fn store() -> &'static Mutex<(u64, HashMap<String, RegistryKey>)> {
-        static STORE: OnceLock<Mutex<(u64, HashMap<String, RegistryKey>)>> = OnceLock::new();
-        STORE.get_or_init(|| Mutex::new((0, HashMap::new())))
-    }
-
-    pub fn register_callback(lua: &Lua, func: Function) -> Result<String> {
-        let key = lua.create_registry_value(func)?;
-        let mut guard = store().lock().map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
-        guard.0 += 1;
-        let id = format!("cb-{}", guard.0);
-        guard.1.insert(id.clone(), key);
-        Ok(id)
     }
 }
 ''');

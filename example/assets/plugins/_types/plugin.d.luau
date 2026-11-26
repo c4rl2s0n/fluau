@@ -9,7 +9,12 @@
 
 export type FieldFlushMap = { [string]: string }
 
+-- Runtime-owned / host-sent event types. Do not emit `action` by hand in
+-- payload tables — pass a Lua function (or ui.action) on callback props instead.
+export type ReservedEventType = "action" | "bootstrap"
+
 export type PluginEvent = {
+	-- Prefer custom types for on_event; "action" is intercepted by the runtime.
 	type: string,
 	[string]: any,
 }

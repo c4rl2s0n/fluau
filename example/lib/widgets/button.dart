@@ -8,13 +8,13 @@ import 'text.dart';
 /// ```lua
 /// ui.Button {
 ///   text = "Login",
-///   onPressed = { type = "login" }
+///   onPressed = function() end, -- or { type = "login" }
 /// }
 /// ```
 @LuaWidget(name: 'Button')
 class LuaButtonWidget extends StatelessWidget {
   final String? text;
-  final Map<String, dynamic>? onPressed;
+  final LuaEventPayload? onPressed;
   final Widget? child;
 
   const LuaButtonWidget({
@@ -36,12 +36,7 @@ class LuaButtonWidget extends StatelessWidget {
     }
 
     return ElevatedButton(
-      onPressed: onPressed != null
-          ? () => PluginEventScope.dispatch(
-                context,
-                Map<String, dynamic>.from(onPressed!),
-              )
-          : null,
+      onPressed: PluginEventScope.luaEventHandler(context, onPressed),
       child: buttonChild,
     );
   }

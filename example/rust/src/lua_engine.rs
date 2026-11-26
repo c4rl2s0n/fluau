@@ -4,7 +4,7 @@
 // Call `register_ui_catalog()` once at process start (e.g. #[frb(init)]).
 // Or pass `ui_setup: Some(crate::lua_engine::setup_lua_api)` to fluau::setup.
 
-use fluau::mlua::{Function, Lua, Result, Table, Value};
+use fluau::mlua::{Lua, Result, Table, Value};
 use fluau::serde_json::{json, Value as JsonValue, Map as JsonMap};
 
 
@@ -111,12 +111,14 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
             map.insert("text".to_string(), json!(v));
         }
 
-        // Handle onPressed (event payload)
+        // Handle onPressed (event payload table or Lua function → action)
         if let Ok(event_value) = args.get::<Option<Value>>("onPressed") {
             if let Some(v) = event_value {
-                let event_json = fluau::json_util::lua_to_json(v)
+                let event_json = fluau::actions::callback_to_json(lua, v)
                     .map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
-                map.insert("onPressed".to_string(), event_json);
+                if !event_json.is_null() {
+                    map.insert("onPressed".to_string(), event_json);
+                }
             }
         }
 
@@ -148,12 +150,14 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
             map.insert("expanded".to_string(), json!(v));
         }
 
-        // Handle onToggle (event payload)
+        // Handle onToggle (event payload table or Lua function → action)
         if let Ok(event_value) = args.get::<Option<Value>>("onToggle") {
             if let Some(v) = event_value {
-                let event_json = fluau::json_util::lua_to_json(v)
+                let event_json = fluau::actions::callback_to_json(lua, v)
                     .map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
-                map.insert("onToggle".to_string(), event_json);
+                if !event_json.is_null() {
+                    map.insert("onToggle".to_string(), event_json);
+                }
             }
         }
 
@@ -291,13 +295,8 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
         catalog_state::get_all_state().map_err(fluau::mlua::Error::runtime)
     })?)?;
 
-    // Callback registration
-    ui.set("registerCallback", lua.create_function(|lua, func: Function| {
-        catalog_callbacks::register_callback(lua, func)
-            .map_err(|e| fluau::mlua::Error::runtime(e.to_string()))
-    })?)?;
-
     lua.globals().set("ui", ui)?;
+    // ui.action is attached by fluau::install_ui after this setup.
 
     // Enum value tables (enums.Name.member → string)
     let enums = lua.create_table()?;
@@ -349,19 +348,30 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
 pub fn execute_ui_script(script: &str) -> std::result::Result<String, String> {
     let lua = Lua::new();
     setup_lua_api(&lua).map_err(|e| e.to_string())?;
+    fluau::actions::install_ui_helpers(&lua).map_err(|e| e.to_string())?;
+    fluau::actions::begin_frame(&lua)?;
 
-    let result: Value = lua
-        .load(script)
-        .eval()
-        .map_err(|e| e.to_string())?;
+    let result: Value = match lua.load(script).eval() {
+        Ok(v) => v,
+        Err(e) => {
+            fluau::actions::discard_frame(&lua);
+            return Err(e.to_string());
+        }
+    };
 
-    match result {
+    let out = match result {
         Value::String(s) => Ok(s.to_string_lossy().to_owned()),
         _ => Err("Lua script must return a widget (string)".to_string()),
+    };
+    match &out {
+        Ok(_) => fluau::actions::commit_frame(&lua)?,
+        Err(_) => fluau::actions::discard_frame(&lua),
     }
+    out
 }
 
-/// Inlined catalog helpers (no host `state` / `callbacks` modules required).
+/// Inlined catalog helpers (no host `state` module required).
+/// UI function callbacks use `fluau::actions` (session-scoped).
 mod catalog_state {
     use fluau::serde_json::Value;
     use std::collections::HashMap;
@@ -391,26 +401,6 @@ mod catalog_state {
     pub fn get_all_state() -> Result<String, String> {
         let guard = store().lock().map_err(|e| e.to_string())?;
         fluau::serde_json::to_string(&*guard).map_err(|e| e.to_string())
-    }
-}
-
-mod catalog_callbacks {
-    use fluau::mlua::{Function, Lua, RegistryKey, Result};
-    use std::collections::HashMap;
-    use std::sync::{Mutex, OnceLock};
-
-    fn store() -> &'static Mutex<(u64, HashMap<String, RegistryKey>)> {
-        static STORE: OnceLock<Mutex<(u64, HashMap<String, RegistryKey>)>> = OnceLock::new();
-        STORE.get_or_init(|| Mutex::new((0, HashMap::new())))
-    }
-
-    pub fn register_callback(lua: &Lua, func: Function) -> Result<String> {
-        let key = lua.create_registry_value(func)?;
-        let mut guard = store().lock().map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
-        guard.0 += 1;
-        let id = format!("cb-{}", guard.0);
-        guard.1.insert(id.clone(), key);
-        Ok(id)
     }
 }
 

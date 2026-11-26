@@ -335,8 +335,9 @@ dependencies = [
 
 [[package]]
 name = "fluau"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
+ "cc",
  "fluau_macros",
  "lazy_static",
  "mlua",

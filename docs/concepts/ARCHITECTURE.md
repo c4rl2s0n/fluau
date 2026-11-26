@@ -54,7 +54,8 @@ and the Dart deserializers aligned.
 That design keeps the trust boundary clear: the plugin describes *what* to show
 within an approved vocabulary; the host decides *how* it looks and what an
 interaction means. Interactive controls do not register live Lua callbacks
-across FFI. A button carries an event payload; a press delivers that payload into
+across FFI. A button carries an event payload (or a Lua function that the session
+turns into a reserved `action` payload); a press delivers that payload into
 the session. Text fields keep values on the Flutter side until an action flushes
 them into the plugin.
 

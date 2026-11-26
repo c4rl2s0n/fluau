@@ -23,13 +23,16 @@ pub fn clear_ui_setup() {
 }
 
 pub fn install_ui(lua: &Lua) -> LuaResult<()> {
+    crate::actions::ensure_registry(lua)?;
     let slot = UI_SETUP.lock().expect("ui setup lock");
     if let Some(f) = *slot {
-        f(lua)
+        f(lua)?;
     } else {
         // Empty catalog: still expose an empty `ui` table.
         let ui = lua.create_table()?;
         lua.globals().set("ui", ui)?;
-        Ok(())
     }
+    // Always attach `ui.action` (session-owned function callbacks).
+    crate::actions::install_ui_helpers(lua)?;
+    Ok(())
 }

@@ -20,7 +20,7 @@ import 'package:fluau/fluau.dart';
 class LuaExpanderWidget extends StatelessWidget {
   final String title;
   final bool? expanded;
-  final Map<String, dynamic>? onToggle;
+  final LuaEventPayload? onToggle;
   final List<Widget>? children;
 
   const LuaExpanderWidget({
@@ -44,7 +44,7 @@ class LuaExpanderWidget extends StatelessWidget {
         if (next == isExpanded) return;
         PluginEventScope.dispatch(
           context,
-          Map<String, dynamic>.from(onToggle!),
+          LuaEventPayload.from(onToggle!),
         );
       },
       children: [

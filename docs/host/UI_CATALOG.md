@@ -74,7 +74,7 @@ Flutter / third-party enums cannot be annotated — wrap them in a host preset
 
 ```yaml
 dev_dependencies:
-  fluau_codegen: ^0.1.10
+  fluau_codegen: ^0.1.11
 ```
 
 ```bash

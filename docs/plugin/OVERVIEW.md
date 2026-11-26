@@ -34,30 +34,45 @@ function render()
     spacing = 8,
     children = {
       ui.Text { text = "Hello fluau", size = "large" },
-      ui.Button { text = "Ping", onPressed = { type = "ping" } },
+      ui.Button {
+        text = "Ping",
+        onPressed = function()
+          -- handled without on_event (reserved `action` event)
+        end,
+      },
     },
   }
-end
-
-function on_event(event)
-  if event.type == "ping" then
-    return {}
-  end
-  return {}
 end
 ```
 
 Manifest shape: required `id` / `name` / `version` / `main` (or legacy `script`);
 optional `capabilities`, `permissions.host`, and `modules`. Widget names must
-exist in the host UI catalog. For a runnable starter see
-`example/assets/plugins/counter/`.
+exist in the host UI catalog. For runnable starters see
+`example/assets/plugins/counter/` and `example/assets/plugins/echo_form/`.
 
 ## UI and events
 
 Plugins do not own a persistent Flutter widget tree. They **render a snapshot**
 of approved UI nodes whenever the host asks. Interaction is **event-driven**:
-controls embed data payloads; when the user acts, the host delivers that payload
-into the session and asks for a new snapshot.
+controls embed data payloads (or Lua functions); when the user acts, the host
+delivers that payload into the session and asks for a new snapshot.
+
+Flutter only pushes events when a **host catalog widget** calls
+`PluginEventScope.dispatch` (e.g. Button `onPressed`). There is no automatic
+gesture → Lua pipe. Form fields use `setField` locally; values reach Lua via
+`flush_state` when the next action event runs — not on every keystroke.
+
+### Callback props: table or function
+
+- **Table** payload (e.g. `{ type = "ping" }`) → handled in optional `on_event`.
+- **Lua function** → runtime registers it for this `render`, embeds a reserved
+  `{ type = "action", id = "…" }` payload, and invokes the function on press
+  (no `on_event` needed). Optional `ui.action(fn, extra?)` adds static fields.
+- Do **not** hand-build `{ type = "action", … }` payloads — `action` and
+  `bootstrap` are reserved (`ReservedEventType` in `plugin.d.luau`).
+
+Handlers are rebound each successful `render` (staging → commit); the live map
+does not grow across paints.
 
 Form-like controls buffer values on the host until an action runs, so `render`
 stays cheap and the plugin sees a coherent field set with the event.
@@ -66,8 +81,8 @@ Mental model:
 
 - Keep plugin state in Lua locals / tables.
 - Use render to project state into the host UI catalog.
-- Use events to mutate state, kick off host work, or publish results.
-- Prefer small event payloads (`type` plus a few fields).
+- Use function callbacks or small event payloads to mutate state.
+- Prefer small event payloads (`type` plus a few fields) when using tables.
 
 ## Host services
 
