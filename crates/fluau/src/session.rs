@@ -4,6 +4,7 @@
 //! interactions arrive as JSON events via `on_event`. Host intents (`db` /
 //! `http` / `app.provideResult`) are drained on the Rust host layer.
 
+use crate::diagnostic::{self, plugin_err, PluginOpGuard};
 use crate::host::{self, api_registry, IntentOutcome, PermissionGate};
 use crate::json_util::{
     json_to_lua, value_to_intents_json, value_to_widget_json,
@@ -55,39 +56,48 @@ pub fn start_plugin_with_modules(
     permissions: PluginPermissions,
     grants: PluginGrants,
 ) -> Result<(), String> {
-    let session_grants = registry::resolve_session_grants(&permissions, &grants)?;
+    diagnostic::install_diagnostic_hooks();
+    let _op = PluginOpGuard::enter(plugin_id, "start");
+
+    let session_grants = registry::resolve_session_grants(&permissions, &grants)
+        .map_err(|e| plugin_err(plugin_id, "start", e))?;
 
     PermissionGate::clear(plugin_id);
-    PermissionGate::bind(plugin_id, session_grants.clone())?;
+    PermissionGate::bind(plugin_id, session_grants.clone())
+        .map_err(|e| plugin_err(plugin_id, "start", e))?;
 
     if let Ok(slot) = SESSION_PREPARE.lock() {
         if let Some(prepare) = *slot {
-            prepare(plugin_id, &session_grants)?;
+            prepare(plugin_id, &session_grants)
+                .map_err(|e| plugin_err(plugin_id, "session_prepare", e))?;
         }
     }
 
     let granted_apis: Vec<String> = session_grants.host.keys().cloned().collect();
 
     let lua = Lua::new();
-    ui::install_ui(&lua).map_err(|e| e.to_string())?;
-    inject_require(&lua, plugin_id, modules).map_err(|e| e.to_string())?;
+    ui::install_ui(&lua).map_err(|e| plugin_err(plugin_id, "install_ui", e))?;
+    inject_require(&lua, plugin_id, modules)
+        .map_err(|e| plugin_err(plugin_id, "inject_require", e))?;
     let host = host::Host::new(plugin_id);
-    api_registry::inject_granted(&lua, host, &granted_apis).map_err(|e| e.to_string())?;
+    api_registry::inject_granted(&lua, host, &granted_apis)
+        .map_err(|e| plugin_err(plugin_id, "inject_host_apis", e))?;
 
     // Luau sandbox: libs/globals read-only; local env for script writes.
     lua.sandbox(true)
-        .map_err(|e| format!("sandbox enable failed: {e}"))?;
+        .map_err(|e| plugin_err(plugin_id, "sandbox", e))?;
 
     lua.load(script)
+        .set_name(&format!("@{plugin_id}"))
         .exec()
-        .map_err(|e| format!("failed to load plugin script: {e}"))?;
+        .map_err(|e| plugin_err(plugin_id, "load_script", e))?;
 
     if let Ok(init) = lua.globals().get::<Function>("init") {
         init.call::<()>(())
-            .map_err(|e| format!("init() failed: {e}"))?;
+            .map_err(|e| plugin_err(plugin_id, "init", e))?;
     }
 
-    let mut sessions = SESSIONS.lock().map_err(|e| e.to_string())?;
+    let mut sessions = SESSIONS.lock().map_err(|e| plugin_err(plugin_id, "sessions", e))?;
     sessions.insert(plugin_id.to_string(), lua);
     Ok(())
 }
@@ -147,9 +157,12 @@ pub fn start_registered_plugin_with_grants(
     plugin_id: &str,
     grants: PluginGrants,
 ) -> Result<(), String> {
-    let script = registry::get_script(plugin_id)?;
-    let modules = registry::get_modules(plugin_id)?;
-    let manifest = registry::get_plugin(plugin_id)?;
+    let script = registry::get_script(plugin_id)
+        .map_err(|e| plugin_err(plugin_id, "start_registered", e))?;
+    let modules = registry::get_modules(plugin_id)
+        .map_err(|e| plugin_err(plugin_id, "start_registered", e))?;
+    let manifest = registry::get_plugin(plugin_id)
+        .map_err(|e| plugin_err(plugin_id, "start_registered", e))?;
     start_plugin_with_modules(
         plugin_id,
         &script,
@@ -161,14 +174,17 @@ pub fn start_registered_plugin_with_grants(
 
 /// Start a session granting every permission the manifest requests.
 pub fn start_registered_plugin(plugin_id: &str) -> Result<(), String> {
-    let manifest = registry::get_plugin(plugin_id)?;
+    let manifest = registry::get_plugin(plugin_id)
+        .map_err(|e| plugin_err(plugin_id, "start_registered", e))?;
     let grants = PluginGrants::all_requested(&manifest.permissions);
     start_registered_plugin_with_grants(plugin_id, grants)
 }
 
 /// Drop a plugin session.
 pub fn stop_plugin(plugin_id: &str) -> Result<(), String> {
-    let mut sessions = SESSIONS.lock().map_err(|e| e.to_string())?;
+    diagnostic::install_diagnostic_hooks();
+    let _op = PluginOpGuard::enter(plugin_id, "stop");
+    let mut sessions = SESSIONS.lock().map_err(|e| plugin_err(plugin_id, "stop", e))?;
     sessions.remove(plugin_id);
     PermissionGate::clear(plugin_id);
     if let Ok(slot) = SESSION_CLEANUP.lock() {
@@ -187,11 +203,9 @@ pub fn is_running(plugin_id: &str) -> Result<bool, String> {
 
 /// Call `render()` and return widget JSON.
 pub fn render_plugin(plugin_id: &str) -> Result<String, String> {
-    let sessions = SESSIONS.lock().map_err(|e| e.to_string())?;
-    let lua = sessions
-        .get(plugin_id)
-        .ok_or_else(|| format!("plugin session not found: {plugin_id}"))?;
-    call_render(lua)
+    diagnostic::install_diagnostic_hooks();
+    let _op = PluginOpGuard::enter(plugin_id, "render");
+    with_session(plugin_id, |lua| call_render(plugin_id, lua))
 }
 
 /// Deliver a UI event JSON object to `on_event`, drain host intents, re-render.
@@ -200,13 +214,16 @@ pub fn plugin_on_event(
     event_json: &str,
     fields_json: Option<&str>,
 ) -> Result<PluginResponse, String> {
+    diagnostic::install_diagnostic_hooks();
+    let _op = PluginOpGuard::enter(plugin_id, "on_event");
     if let Some(fields) = fields_json {
         let trimmed = fields.trim();
         if !trimmed.is_empty() && trimmed != "null" {
-            with_session(plugin_id, |lua| call_flush_state(lua, trimmed))?;
+            with_session(plugin_id, |lua| call_flush_state(plugin_id, lua, trimmed))?;
         }
     }
-    let intents = with_session(plugin_id, |lua| call_handler(lua, "on_event", event_json))?;
+    let intents =
+        with_session(plugin_id, |lua| call_handler(plugin_id, lua, "on_event", event_json))?;
     drain_host_and_render(plugin_id, &intents)
 }
 
@@ -216,29 +233,33 @@ pub fn call_plugin(
     method: &str,
     args_json: &str,
 ) -> Result<String, String> {
+    diagnostic::install_diagnostic_hooks();
+    let _op = PluginOpGuard::enter(plugin_id, &format!("dispatch({method})"));
     if !is_running(plugin_id)? {
         start_registered_plugin(plugin_id)?;
     }
 
     with_session(plugin_id, |lua| {
-        let dispatch: Function = lua
-            .globals()
-            .get("dispatch")
-            .map_err(|_| {
-                "plugin must define dispatch(method, args) for capability calls".to_string()
-            })?;
+        let dispatch: Function = lua.globals().get("dispatch").map_err(|_| {
+            plugin_err(
+                plugin_id,
+                "dispatch",
+                "plugin must define dispatch(method, args) for capability calls",
+            )
+        })?;
 
         let args: JsonValue = serde_json::from_str(if args_json.trim().is_empty() {
             "{}"
         } else {
             args_json
         })
-        .map_err(|e| format!("invalid args JSON: {e}"))?;
-        let lua_args = json_to_lua(lua, &args).map_err(|e| e.to_string())?;
+        .map_err(|e| plugin_err(plugin_id, "dispatch", format!("invalid args JSON: {e}")))?;
+        let lua_args = json_to_lua(lua, &args)
+            .map_err(|e| plugin_err(plugin_id, "dispatch", e))?;
 
         let result: Value = dispatch
             .call((method.to_string(), lua_args))
-            .map_err(|e| format!("dispatch({method}) failed: {e}"))?;
+            .map_err(|e| plugin_err(plugin_id, &format!("dispatch({method})"), e))?;
 
         match result {
             Value::Nil => Ok("null".to_string()),
@@ -251,7 +272,8 @@ pub fn call_plugin(
                 }
             }
             other => {
-                let json = crate::json_util::lua_to_json(other).map_err(|e| e.to_string())?;
+                let json = crate::json_util::lua_to_json(other)
+                    .map_err(|e| plugin_err(plugin_id, "dispatch", e))?;
                 Ok(json.to_string())
             }
         }
@@ -263,7 +285,7 @@ fn drain_host_and_render(
     initial_intents_json: &str,
 ) -> Result<PluginResponse, String> {
     let mut provide_results = Vec::new();
-    let mut pending = parse_intents(initial_intents_json)?;
+    let mut pending = parse_intents(plugin_id, initial_intents_json)?;
 
     for _ in 0..16 {
         if pending.is_empty() {
@@ -272,19 +294,21 @@ fn drain_host_and_render(
 
         let mut next_pending: Vec<JsonValue> = Vec::new();
         for intent in pending {
-            match host::execute_intent(plugin_id, &intent)? {
+            match host::execute_intent(plugin_id, &intent)
+                .map_err(|e| plugin_err(plugin_id, "host_intent", e))?
+            {
                 IntentOutcome::ProvideResult { value, ack } => {
                     provide_results.push(value);
                     let more = with_session(plugin_id, |lua| {
-                        call_handler(lua, "on_host_result", &ack.to_string())
+                        call_handler(plugin_id, lua, "on_host_result", &ack.to_string())
                     })?;
-                    next_pending.extend(parse_intents(&more)?);
+                    next_pending.extend(parse_intents(plugin_id, &more)?);
                 }
                 IntentOutcome::HostResult(result) => {
                     let more = with_session(plugin_id, |lua| {
-                        call_handler(lua, "on_host_result", &result.to_string())
+                        call_handler(plugin_id, lua, "on_host_result", &result.to_string())
                     })?;
-                    next_pending.extend(parse_intents(&more)?);
+                    next_pending.extend(parse_intents(plugin_id, &more)?);
                 }
             }
         }
@@ -298,13 +322,13 @@ fn drain_host_and_render(
     })
 }
 
-fn parse_intents(intents_json: &str) -> Result<Vec<JsonValue>, String> {
+fn parse_intents(plugin_id: &str, intents_json: &str) -> Result<Vec<JsonValue>, String> {
     let trimmed = intents_json.trim();
     if trimmed.is_empty() || trimmed == "null" {
         return Ok(vec![]);
     }
-    let decoded: JsonValue =
-        serde_json::from_str(trimmed).map_err(|e| format!("invalid intents JSON: {e}"))?;
+    let decoded: JsonValue = serde_json::from_str(trimmed)
+        .map_err(|e| plugin_err(plugin_id, "parse_intents", format!("invalid intents JSON: {e}")))?;
     match decoded {
         JsonValue::Array(arr) => Ok(arr),
         JsonValue::Object(_) => Ok(vec![decoded]),
@@ -312,52 +336,106 @@ fn parse_intents(intents_json: &str) -> Result<Vec<JsonValue>, String> {
     }
 }
 
+/// Clone the session `Lua` handle under a short lock, then run `f` without holding `SESSIONS`.
 fn with_session<T>(
     plugin_id: &str,
     f: impl FnOnce(&Lua) -> Result<T, String>,
 ) -> Result<T, String> {
-    let sessions = SESSIONS.lock().map_err(|e| e.to_string())?;
-    let lua = sessions
-        .get(plugin_id)
-        .ok_or_else(|| format!("plugin session not found: {plugin_id}"))?;
-    f(lua)
+    let lua = {
+        let sessions = SESSIONS
+            .lock()
+            .map_err(|e| plugin_err(plugin_id, "sessions", e))?;
+        sessions
+            .get(plugin_id)
+            .cloned()
+            .ok_or_else(|| plugin_err(plugin_id, "sessions", "plugin session not found"))?
+    };
+    f(&lua)
 }
 
-fn call_render(lua: &Lua) -> Result<String, String> {
-    let render: Function = lua
-        .globals()
-        .get("render")
-        .map_err(|_| "plugin must define render()".to_string())?;
+fn call_render(plugin_id: &str, lua: &Lua) -> Result<String, String> {
+    let render: Function = lua.globals().get("render").map_err(|_| {
+        plugin_err(plugin_id, "render", "plugin must define render()")
+    })?;
     let result: Value = render
         .call(())
-        .map_err(|e| format!("render() failed: {e}"))?;
-    value_to_widget_json(result)
+        .map_err(|e| plugin_err(plugin_id, "render", e))?;
+    value_to_widget_json(result).map_err(|e| plugin_err(plugin_id, "render", e))
 }
 
-fn call_flush_state(lua: &Lua, fields_json: &str) -> Result<(), String> {
+fn call_flush_state(plugin_id: &str, lua: &Lua, fields_json: &str) -> Result<(), String> {
     let Ok(flush) = lua.globals().get::<Function>("flush_state") else {
         return Ok(());
     };
     let payload: JsonValue = serde_json::from_str(fields_json)
-        .map_err(|e| format!("invalid fields JSON: {e}"))?;
-    let lua_payload = json_to_lua(lua, &payload).map_err(|e| e.to_string())?;
+        .map_err(|e| plugin_err(plugin_id, "flush_state", format!("invalid fields JSON: {e}")))?;
+    let lua_payload =
+        json_to_lua(lua, &payload).map_err(|e| plugin_err(plugin_id, "flush_state", e))?;
     flush
         .call::<()>(lua_payload)
-        .map_err(|e| format!("flush_state() failed: {e}"))?;
+        .map_err(|e| plugin_err(plugin_id, "flush_state", e))?;
     Ok(())
 }
 
-fn call_handler(lua: &Lua, name: &str, payload_json: &str) -> Result<String, String> {
+fn call_handler(
+    plugin_id: &str,
+    lua: &Lua,
+    name: &str,
+    payload_json: &str,
+) -> Result<String, String> {
     let Ok(handler) = lua.globals().get::<Function>(name) else {
         return Ok("[]".to_string());
     };
 
-    let payload: JsonValue =
-        serde_json::from_str(payload_json).map_err(|e| format!("invalid JSON payload: {e}"))?;
-    let lua_payload = json_to_lua(lua, &payload).map_err(|e| e.to_string())?;
+    let payload: JsonValue = serde_json::from_str(payload_json).map_err(|e| {
+        plugin_err(
+            plugin_id,
+            name,
+            format!("invalid JSON payload: {e}"),
+        )
+    })?;
+    let lua_payload =
+        json_to_lua(lua, &payload).map_err(|e| plugin_err(plugin_id, name, e))?;
 
     let result: Value = handler
         .call(lua_payload)
-        .map_err(|e| format!("{name}() failed: {e}"))?;
-    value_to_intents_json(result).map_err(|e| e.to_string())
+        .map_err(|e| plugin_err(plugin_id, name, e))?;
+    value_to_intents_json(result).map_err(|e| plugin_err(plugin_id, name, e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::registry::{PluginGrants, PluginPermissions};
+
+    #[test]
+    fn plugin_err_includes_id_and_op() {
+        let msg = plugin_err("hello", "render", "boom");
+        assert!(msg.contains("[hello]"));
+        assert!(msg.contains("render"));
+        assert!(msg.contains("boom"));
+    }
+
+    #[test]
+    fn render_error_includes_plugin_id_and_message() {
+        diagnostic::install_diagnostic_hooks();
+        let id = "err_plugin";
+        let script = r#"
+            function render()
+                error("intentional failure")
+            end
+        "#;
+        start_plugin(
+            id,
+            script,
+            PluginPermissions::default(),
+            PluginGrants::default(),
+        )
+        .expect("start");
+        let err = render_plugin(id).expect_err("render should fail");
+        assert!(err.contains("[err_plugin]"), "{err}");
+        assert!(err.contains("render"), "{err}");
+        assert!(err.contains("intentional failure"), "{err}");
+        let _ = stop_plugin(id);
+    }
 }

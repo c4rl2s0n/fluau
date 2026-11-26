@@ -17,7 +17,7 @@ description: >-
 * Always persist permission decisions with a `PluginGrantStore` (memory is ephemeral; prefer a custom or file store for real apps).
 * Use `dart run fluau:bootstrap` to stamp glue (`fluau.yaml` optional). Then run `flutter_rust_bridge_codegen generate` when FRB APIs change.
 * For `build.rs` stub emission, add crates.io `fluau` with `stub-gen` in `build-dependencies`.
-* Version pairing: Dart `fluau: ^0.1.13` + crates `fluau = "0.1"` (crates.io may still be 0.1.0) is supported — patch numbers need not match. HostAPIs that touch Lua/JSON may use `fluau::mlua` / `fluau::serde_json` or add those crates directly.
+* Version pairing: Dart `fluau: ^0.1.13` + crates `fluau = "0.1"` (crates.io **0.1.1+** re-exports `fluau::mlua` / `fluau::serde_json` for generated `lua_engine`) — patch numbers need not match. HostAPIs may use those re-exports or add the crates directly.
 
 Docs: [Integration](https://github.com/c4rl2s0n/fluau/blob/main/docs/host/INTEGRATION.md),
 [fluau.yaml](https://github.com/c4rl2s0n/fluau/blob/main/docs/host/FLUAU_YAML.md),

@@ -167,14 +167,14 @@ packages:
       path: "../packages/fluau"
       relative: true
     source: path
-    version: "0.1.5"
+    version: "0.1.13"
   fluau_codegen:
     dependency: "direct dev"
     description:
       path: "../packages/fluau_codegen"
       relative: true
     source: path
-    version: "0.1.1"
+    version: "0.1.10"
   flutter:
     dependency: "direct main"
     description: flutter

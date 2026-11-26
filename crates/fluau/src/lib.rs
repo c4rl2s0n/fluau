@@ -8,6 +8,8 @@
 #![cfg_attr(not(feature = "runtime"), allow(unused_imports))]
 
 #[cfg(feature = "runtime")]
+pub mod diagnostic;
+#[cfg(feature = "runtime")]
 pub mod host;
 #[cfg(feature = "runtime")]
 pub mod json_util;
@@ -44,6 +46,8 @@ pub use session::{
 pub use setup::{SetupOptions, setup};
 #[cfg(feature = "runtime")]
 pub use ui::{UiSetupFn, set_ui_setup};
+#[cfg(feature = "runtime")]
+pub use diagnostic::install_diagnostic_hooks;
 
 /// Re-export macros so apps can depend on `fluau` alone for `#[host_module]`.
 #[cfg(feature = "runtime")]

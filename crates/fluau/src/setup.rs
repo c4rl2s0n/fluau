@@ -1,5 +1,6 @@
 //! One-shot process setup for the Luau plugin runtime.
 
+use crate::diagnostic;
 use crate::host::{self, api_registry::HostApiEntry, permissions::ConstraintChecker};
 use crate::ui::{self, UiSetupFn};
 
@@ -15,7 +16,11 @@ pub struct SetupOptions {
 /// Configure the runtime: register HostApis, intent handlers, constraint checkers, UI catalog.
 ///
 /// Call once at process start from the app (before starting plugin sessions).
+/// Also installs the process terminate hook so escaped Luau C++ exceptions print
+/// `what()` (and the current plugin/op) instead of only the type name.
 pub fn setup(opts: SetupOptions) -> Result<(), String> {
+    diagnostic::install_diagnostic_hooks();
+
     host::api_registry::clear_host_apis();
     host::clear_intent_handlers();
     host::PermissionGate::clear_constraint_checkers();
