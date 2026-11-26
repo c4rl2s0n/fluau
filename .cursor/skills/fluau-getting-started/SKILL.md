@@ -8,5 +8,5 @@ description: >-
 # fluau getting started
 
 1. Read [docs/GETTING_STARTED.md](../../../docs/GETTING_STARTED.md).
-2. For a runnable host, use the [example/](../../../example/) app (`fake_vpn`, `proton_vpn`).
+2. For a runnable host, use the [example/](../../../example/) app (`counter`).
 3. Do not invent FRB-from-zero steps — link to flutter_rust_bridge docs as in Getting Started.

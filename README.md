@@ -28,13 +28,13 @@ flutter pub get
 flutter run
 ```
 
-Pick **fake VPN** or **Proton VPN**, review the permission sheet, and interact
-with the plugin UI. Permission decisions in the example persist via
+Run the **Counter** plugin, review the permission sheet, and interact with the
+plugin UI. Permission decisions in the example persist via
 `JsonFilePluginGrantStore` under the system temp directory.
 
 ## Next steps
 
-- [First plugin](docs/GETTING_STARTED.md#first-plugin) — copy `fake_vpn`, register assets
+- [First plugin](docs/GETTING_STARTED.md#first-plugin) — copy `counter`, register assets
 - [Integrate into your FRB app](docs/GETTING_STARTED.md#integrate-into-your-frb-app) — bootstrap, bind, catalog, permissions
 - [When to regenerate](docs/codegen/WHEN_TO_RUN.md) — including `fluau:bootstrap` (not a first-run step)
 

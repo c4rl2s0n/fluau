@@ -73,12 +73,9 @@ flutter:
 
   assets:
     # Directory entries are not recursive — list each folder that holds files.
-    - assets/plugins/fake_vpn/
-    - assets/plugins/proton_vpn/
-    - assets/plugins/proton_vpn/lib/
+    - assets/plugins/counter/
     # Explicit yaml manifests (also covered by directory entries above).
-    - assets/plugins/fake_vpn/plugin.yaml
-    - assets/plugins/proton_vpn/plugin.yaml
+    - assets/plugins/counter/plugin.yaml
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

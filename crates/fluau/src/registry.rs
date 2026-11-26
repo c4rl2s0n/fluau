@@ -86,7 +86,7 @@ pub struct PluginManifest {
 struct RegisteredPlugin {
     manifest: PluginManifest,
     script_source: String,
-    /// Module name → source (e.g. "proton_srp" → lib contents).
+    /// Module name → source (e.g. "helpers" → lib contents).
     modules: HashMap<String, String>,
 }
 
@@ -430,12 +430,12 @@ mod tests {
     fn normalize_legacy_string_list() {
         let host = json!(["http.request", "db", "log"]);
         let (perms, warns) =
-            normalize_host_permissions(&host, &["fake.proton".into()]).unwrap();
+            normalize_host_permissions(&host, &["api.example.com".into()]).unwrap();
         assert!(warns.is_empty());
         assert_eq!(perms.len(), 3);
         let http = perms.iter().find(|p| p.id == "http").unwrap();
         assert!(http.required);
-        assert!(http.constraints_json.contains("fake.proton"));
+        assert!(http.constraints_json.contains("api.example.com"));
         assert!(perms.iter().any(|p| p.id == "db"));
     }
 

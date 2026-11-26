@@ -5,7 +5,6 @@ import 'package:fluau/fluau.dart';
 import 'package:luatest/fluau/fluau_bridge.g.dart';
 import 'package:luatest/fluau/widget_serializers.g.dart';
 import 'package:luatest/src/rust/frb_generated.dart';
-import 'package:luatest/vpn_provider.dart';
 
 late PluginGrantStore grantStore;
 
@@ -19,8 +18,7 @@ Future<void> main() async {
   grantStore = JsonFilePluginGrantStore(grantsPath);
 
   await PluginRegistryLoader.registerPackages(const [
-    'assets/plugins/fake_vpn',
-    'assets/plugins/proton_vpn',
+    'assets/plugins/counter',
   ]);
   runApp(const MyApp());
 }
@@ -49,10 +47,9 @@ class PluginDemoPage extends StatefulWidget {
 }
 
 class _PluginDemoPageState extends State<PluginDemoPage> {
-  String _pluginId = 'proton-vpn';
+  String _pluginId = 'counter';
 
   String? _providedResult;
-  String? _contractResult;
   List<PluginManifestDto> _plugins = const [];
   int _session = 0;
   PluginGrantsDto? _activeGrants;
@@ -116,31 +113,6 @@ class _PluginDemoPageState extends State<PluginDemoPage> {
     });
   }
 
-  Future<void> _useConfigViaContract() async {
-    try {
-      final vpn = VpnProvider(_pluginId);
-      if (!vpn.isCapable) {
-        setState(() => _contractResult = 'Plugin is not a vpn.provider');
-        return;
-      }
-      final result = await vpn.getSelectedConfig();
-      if (!mounted) return;
-      setState(() => _contractResult = result.toString());
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result.ok
-                ? 'Loaded config via vpn.provider contract'
-                : 'Contract: ${result.error ?? result}',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _contractResult = e.toString());
-    }
-  }
-
   String _permsSummary(PluginPermissionsDto? perms) {
     if (perms == null) return '';
     final parts = perms.host.map((h) {
@@ -161,10 +133,6 @@ class _PluginDemoPageState extends State<PluginDemoPage> {
         appBar: AppBar(
           title: const Text('Lua Plugin PoC'),
           actions: [
-            TextButton(
-              onPressed: _useConfigViaContract,
-              child: const Text('Use config'),
-            ),
             IconButton(
               tooltip: 'Review permissions',
               onPressed: () => _ensureGrants(forcePrompt: true),
@@ -175,7 +143,6 @@ class _PluginDemoPageState extends State<PluginDemoPage> {
               onPressed: () => setState(() {
                 _session++;
                 _providedResult = null;
-                _contractResult = null;
               }),
               icon: const Icon(Icons.refresh),
             ),
@@ -211,7 +178,6 @@ class _PluginDemoPageState extends State<PluginDemoPage> {
                           _pluginId = id;
                           _session++;
                           _providedResult = null;
-                          _contractResult = null;
                           _activeGrants = null;
                         });
                         await _ensureGrants();
@@ -236,13 +202,6 @@ class _PluginDemoPageState extends State<PluginDemoPage> {
                       _providedResult == null
                           ? 'UI provideResult: (none yet)'
                           : 'UI provideResult: $_providedResult',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _contractResult == null
-                          ? 'Contract get_selected_config: (tap Use config)'
-                          : 'Contract get_selected_config: $_contractResult',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],

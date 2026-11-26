@@ -1,7 +1,7 @@
 //! Generic crypto primitives for plugins that declare the `crypto` host permission.
 //!
-//! No provider-specific APIs (no SRP / Proton helpers). Plugins compose these
-//! building blocks in Luau.
+//! No provider-specific protocol helpers. Plugins compose these building blocks
+//! in Luau.
 
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use bcrypt::{hash_with_salt, Version};

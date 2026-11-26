@@ -29,8 +29,8 @@ flutter pub get
 flutter run
 ```
 
-Pick **fake VPN** or **Proton VPN**, review the permission sheet, and interact
-with the plugin UI. Permission decisions in the example persist via
+Run the **Counter** plugin, review the permission sheet, and interact with the
+plugin UI. Permission decisions in the example persist via
 `JsonFilePluginGrantStore` under the system temp directory.
 <!-- fluau:include-end id="try-example" -->
 
@@ -39,7 +39,7 @@ API or path changes — see [codegen/WHEN_TO_RUN.md](codegen/WHEN_TO_RUN.md).
 
 ## First plugin
 
-1. Copy `example/assets/plugins/fake_vpn/` to a new folder under `assets/plugins/`.
+1. Copy `example/assets/plugins/counter/` to a new folder under `assets/plugins/`.
 2. Change `id` / `name` / `version` in `plugin.yaml`. Keep permission shapes as in
    the example manifests and stubs — those files are the source of truth.
 3. Register the asset folder in the example `pubspec.yaml` and in

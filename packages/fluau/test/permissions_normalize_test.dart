@@ -6,12 +6,12 @@ void main() {
     test('legacy string list + httpAllowlist', () {
       final host = PluginRegistryLoader.normalizeHostList(
         ['http.request', 'db', 'log'],
-        ['fake.proton'],
+        ['api.example.com'],
       );
       expect(host.map((h) => h.id).toList(), ['http', 'db', 'log']);
       final http = host.firstWhere((h) => h.id == 'http');
       expect(http.isRequired, isTrue);
-      expect(http.constraints['domains'], ['fake.proton']);
+      expect(http.constraints['domains'], ['api.example.com']);
     });
 
     test('optional map entries', () {

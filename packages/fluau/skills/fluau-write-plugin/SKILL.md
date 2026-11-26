@@ -17,7 +17,7 @@ description: >-
 * Sessions start with a host-sent `{ type = "bootstrap" }` event — handle or ignore in `on_event`.
 * `ui.*` constructors only exist after the host runs `fluau_codegen` and registers `SetupOptions.ui_setup` (`fluau-ui-catalog` / `fluau-integrate-host`).
 * Declare host API needs in `plugin.yaml`. Use the compact schema below; host entries may be a string id or a single-key map (`http: { domains: [...] }`, `optional: true`) — do not invent undocumented keys.
-* Prefer the minimal example below (or the monorepo `fake_vpn` package) over inventing a new layout.
+* Prefer the minimal example below (or the monorepo `counter` package) over inventing a new layout.
 * Stay inside the host UI vocabulary; new controls require a host catalog change (`fluau-ui-catalog`), not a plugin-local hack.
 
 Docs: [Plugin overview](https://github.com/c4rl2s0n/fluau/blob/main/docs/plugin/OVERVIEW.md),

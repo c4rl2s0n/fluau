@@ -68,24 +68,6 @@ impl HttpClient {
 
         self.ingest_set_cookie(&response);
 
-        // Stub login convenience cookie for fake.proton demos.
-        if url.contains("fake.proton") && (url.contains("auth") || url.contains("login")) {
-            if response.get("ok").and_then(|v| v.as_bool()) == Some(true) {
-                let token = response
-                    .pointer("/body/token")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("stub-session")
-                    .to_string();
-                self.cookies.insert("session".to_string(), token.clone());
-                if let Value::Object(ref mut map) = response {
-                    map.insert(
-                        "headers".into(),
-                        json!({ "set-cookie": [format!("session={token}")] }),
-                    );
-                }
-            }
-        }
-
         if let Value::Object(ref mut map) = response {
             let mut out_headers = match map.remove("headers") {
                 Some(Value::Object(h)) => h,

@@ -8,8 +8,6 @@ use fluau::{
     PluginManifest as RegistryManifest, PluginModule as RegistryModule,
     PluginPermissions as RegistryPermissions, PluginResponse as SessionPluginResponse,
 };
-use serde_json::json;
-
 /// One requested host API (normalized).
 #[derive(Clone, Debug)]
 pub struct HostApiPermission {
@@ -218,26 +216,12 @@ pub fn start_registered_plugin_with_grants(
     core::start_registered_plugin_with_grants(&plugin_id, grants.into())
 }
 
-/// Ad-hoc script session with demo http/db grants (legacy helper).
+/// Ad-hoc script session with empty grants (legacy helper).
 #[flutter_rust_bridge::frb(sync)]
 pub fn start_plugin(plugin_id: String, script: String) -> Result<(), String> {
     ensure();
-    let perms = core::PluginPermissions {
-        host: vec![
-            core::HostApiPermission {
-                id: "http".into(),
-                required: true,
-                constraints_json: json!({ "domains": ["fake.proton"] }).to_string(),
-            },
-            core::HostApiPermission {
-                id: "db".into(),
-                required: true,
-                constraints_json: "{}".into(),
-            },
-        ],
-        libraries: vec![],
-    };
-    let grants = core::PluginGrants::all_requested(&perms);
+    let perms = core::PluginPermissions::default();
+    let grants = core::PluginGrants::default();
     core::start_plugin(&plugin_id, &script, perms, grants)
 }
 
@@ -253,7 +237,7 @@ pub fn render_plugin(plugin_id: String) -> Result<String, String> {
     core::render_plugin(&plugin_id)
 }
 
-/// Async so SRP + HTTP (logicals) do not block the Flutter UI isolate.
+/// Async so crypto + HTTP work does not block the Flutter UI isolate.
 pub fn plugin_on_event(
     plugin_id: String,
     event_json: String,
@@ -263,7 +247,7 @@ pub fn plugin_on_event(
     core::plugin_on_event(&plugin_id, &event_json, fields_json.as_deref()).map(Into::into)
 }
 
-/// Async so VPN provider calls that hit the network stay off the UI thread.
+/// Async so capability calls that hit the network stay off the UI thread.
 pub fn call_plugin(
     plugin_id: String,
     method: String,

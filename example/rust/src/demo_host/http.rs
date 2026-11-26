@@ -1,14 +1,15 @@
-//! HTTP transport: stub for demo hosts, real networking otherwise.
+//! HTTP transport for plugin host requests.
 
 use std::io::Read;
 
 use serde_json::{json, Value};
 use url::Url;
 
-/// Max response body size (logicals JSON can exceed ureq's default 10 MiB `into_string` cap).
+/// Max response body size (large JSON payloads can exceed ureq's default 10 MiB
+/// `into_string` cap).
 const MAX_BODY_BYTES: u64 = 64 * 1024 * 1024;
 
-/// Perform an HTTP request. `fake.proton` (and similar) stay stubbed for demos.
+/// Perform an HTTP request over the network.
 pub fn request(
     method: &str,
     url: &str,
@@ -16,61 +17,7 @@ pub fn request(
     headers: Option<&Value>,
     cookie_header: Option<&str>,
 ) -> Value {
-    if is_stub_host(url) {
-        return stub_request(url, body);
-    }
     real_request(method, url, body, headers, cookie_header)
-}
-
-fn is_stub_host(url: &str) -> bool {
-    Url::parse(url)
-        .ok()
-        .and_then(|u| u.host_str().map(|h| h.ends_with("fake.proton") || h == "fake.proton"))
-        .unwrap_or(url.contains("fake.proton"))
-}
-
-fn stub_request(url: &str, body: Option<&Value>) -> Value {
-    if url.contains("auth") || url.contains("login") {
-        let user = body
-            .and_then(|b| b.get("username"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        if user.is_empty() {
-            return json!({
-                "ok": false,
-                "status": 401,
-                "body": { "error": "username required" }
-            });
-        }
-        return json!({
-            "ok": true,
-            "status": 200,
-            "body": {
-                "token": format!("fake-token-for-{user}"),
-                "username": user
-            }
-        });
-    }
-
-    if url.contains("server") {
-        return json!({
-            "ok": true,
-            "status": 200,
-            "body": {
-                "servers": [
-                    { "id": "CH#12", "name": "Switzerland", "load": 12 },
-                    { "id": "DE#45", "name": "Germany", "load": 34 },
-                    { "id": "US#7", "name": "United States", "load": 55 }
-                ]
-            }
-        });
-    }
-
-    json!({
-        "ok": false,
-        "status": 404,
-        "body": { "error": "unknown url" }
-    })
 }
 
 fn real_request(
@@ -95,7 +42,6 @@ fn real_request(
         }
     };
 
-    req = req.set("Accept", "application/vnd.protonmail.v1+json");
     req = req.set("User-Agent", "luatest-plugin/0.1");
 
     if let Some(Value::Object(map)) = headers {
@@ -230,21 +176,9 @@ mod tests {
 
     #[test]
     fn allowlist_matches_host_and_subdomain() {
-        let list = vec!["api.protonvpn.ch".into(), "fake.proton".into()];
-        assert!(host_allowed("https://api.protonvpn.ch/vpn/logicals", &list));
-        assert!(host_allowed("https://fake.proton/auth/login", &list));
+        let list = vec!["api.example.com".into(), "demo.local".into()];
+        assert!(host_allowed("https://api.example.com/v1/items", &list));
+        assert!(host_allowed("https://demo.local/auth/login", &list));
         assert!(!host_allowed("https://evil.example/x", &list));
-    }
-
-    #[test]
-    fn stub_login_still_works() {
-        let r = request(
-            "POST",
-            "https://fake.proton/auth/login",
-            Some(&serde_json::json!({"username":"a"})),
-            None,
-            None,
-        );
-        assert_eq!(r["ok"], true);
     }
 }

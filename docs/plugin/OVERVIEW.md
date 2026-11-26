@@ -49,8 +49,8 @@ end
 
 Manifest shape: required `id` / `name` / `version` / `main` (or legacy `script`);
 optional `capabilities`, `permissions.host`, and `modules`. Widget names must
-exist in the host UI catalog. For a fuller example see
-`example/assets/plugins/fake_vpn/`.
+exist in the host UI catalog. For a runnable starter see
+`example/assets/plugins/counter/`.
 
 ## UI and events
 
@@ -81,7 +81,7 @@ Two styles coexist:
 - **Intents** returned from handlers, drained in rounds by the runtime.
 
 Crypto on the host is deliberately generic. Domain protocols belong in plugin
-modules. The Proton VPN package is the worked example of that split.
+modules, not in host APIs.
 
 ## Capabilities
 
@@ -90,9 +90,8 @@ without the widget tree. See [capabilities/OVERVIEW.md](../capabilities/OVERVIEW
 
 ## Authoring tips
 
-- Start from the minimal plugin above, or `example/assets/plugins/fake_vpn/` for
-  capabilities + host intents.
-- Use Proton VPN when you need multi-module structure and allowlisted HTTPS.
+- Start from the minimal plugin above, or `example/assets/plugins/counter/` for
+  a runnable package with no host permissions.
 - Stay inside the host UI vocabulary. New controls are a host catalog change
   ([UI_CATALOG.md](../host/UI_CATALOG.md)), not something one plugin invents.
 

@@ -9,8 +9,8 @@ import 'package:fluau/fluau.dart';
 /// Lua usage:
 /// ```lua
 /// ui.Switch {
-///   id = "wg.CH#12.SplitTCP",
-///   label = "VPN Accelerator",
+///   id = "notifications",
+///   label = "Enable notifications",
 ///   value = true
 /// }
 /// ```

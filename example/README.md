@@ -1,6 +1,6 @@
 # Example app
 
-Runnable Flutter host for **fluau** (demo HostAPIs + fake/Proton VPN plugins).
+Runnable Flutter host for **fluau** (demo HostAPIs + counter plugin).
 
 ## Run
 

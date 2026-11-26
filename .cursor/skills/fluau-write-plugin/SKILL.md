@@ -9,5 +9,5 @@ description: >-
 
 1. Read [docs/plugin/OVERVIEW.md](../../../docs/plugin/OVERVIEW.md) and
    [docs/plugin/PERMISSIONS.md](../../../docs/plugin/PERMISSIONS.md).
-2. Copy structure from [example/assets/plugins/fake_vpn/](../../../example/assets/plugins/fake_vpn/).
+2. Copy structure from [example/assets/plugins/counter/](../../../example/assets/plugins/counter/).
 3. Treat manifests and `assets/plugins/_types/*.d.luau` stubs as schema source of truth — do not invent field tables.

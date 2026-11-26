@@ -59,7 +59,7 @@ void stopPlugin({required String pluginId}) =>
 String renderPlugin({required String pluginId}) =>
     RustLib.instance.api.crateApiPluginRenderPlugin(pluginId: pluginId);
 
-/// Async so SRP + HTTP (logicals) do not block the Flutter UI isolate.
+/// Async so crypto + HTTP work does not block the Flutter UI isolate.
 Future<PluginResponse> pluginOnEvent({
   required String pluginId,
   required String eventJson,
@@ -70,7 +70,7 @@ Future<PluginResponse> pluginOnEvent({
   fieldsJson: fieldsJson,
 );
 
-/// Async so VPN provider calls that hit the network stay off the UI thread.
+/// Async so capability calls that hit the network stay off the UI thread.
 Future<String> callPlugin({
   required String pluginId,
   required String method,
