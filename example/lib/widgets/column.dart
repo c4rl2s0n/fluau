@@ -7,8 +7,8 @@ import 'types.dart';
 /// Lua usage:
 ///   ui.Column {
 ///     spacing = 16,
-///     mainAxisAlignment = "center",
-///     crossAxisAlignment = "center",
+///     mainAxisAlignment = enums.MainAxisAlignmentPreset.center,
+///     crossAxisAlignment = enums.CrossAxisAlignmentPreset.center,
 ///     children = {
 ///       ui.Text { text = "First" },
 ///       ui.Text { text = "Second" },

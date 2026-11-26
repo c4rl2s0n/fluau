@@ -49,6 +49,14 @@ pub use ui::{UiSetupFn, set_ui_setup};
 #[cfg(feature = "runtime")]
 pub use fluau_macros::{host_module, host_userdata, HostType, HostUserData};
 
+/// Re-export runtime deps so generated `lua_engine` (and hosts) can use
+/// `fluau::mlua` / `fluau::serde_json` without a separate Cargo entry.
+/// Keeps `UiSetupFn` type identity aligned with fluau's `mlua` version.
+#[cfg(feature = "runtime")]
+pub use mlua;
+#[cfg(feature = "runtime")]
+pub use serde_json;
+
 #[cfg(feature = "stub-gen")]
 pub use stub_gen::{
     generate_luau_stubs, emit_luau, parse_directory, parse_source, HostApiModel, ParseError,

@@ -36,6 +36,31 @@ class LuaWidget {
   const LuaWidget({this.name, this.hasChildren = false});
 }
 
+/// Marks a host-owned Dart enum for the Lua catalog.
+///
+/// Enums used as `@LuaWidget` / `@LuaData` constructor parameters are always
+/// discovered (Luau string union + `enums.<Name>` value table). Use [LuaEnum]
+/// to rename the Lua type/table, or to emit an enum that is not yet referenced
+/// by a widget param.
+///
+/// Wire values remain the Dart enum constant names (strings). Plugins may write
+/// `size = enums.TextSize.large` or `size = "large"`.
+///
+/// Flutter / third-party enums cannot be annotated — wrap them in a host-owned
+/// preset enum instead.
+///
+/// Example:
+/// ```dart
+/// @LuaEnum(name: 'TextSize')
+/// enum TextSize { small, medium, large }
+/// ```
+class LuaEnum {
+  /// Lua type and `enums.<name>` table key (defaults to the Dart enum name).
+  final String? name;
+
+  const LuaEnum({this.name});
+}
+
 /// Marks a class as a Lua-exposable data class (not a widget).
 ///
 /// Data classes are used for nested properties like styles, configurations, etc.

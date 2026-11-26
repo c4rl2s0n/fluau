@@ -10,6 +10,14 @@ export type MainAxisAlignmentPreset = "start" | "center" | "end" | "spaceBetween
 export type TextColor = "primary" | "secondary" | "error" | "text"
 export type TextSize = "small" | "medium" | "large"
 
+declare enums: {
+  CrossAxisAlignmentPreset: { start: "start", center: "center", end: "end", stretch: "stretch", baseline: "baseline" },
+  FontWeightPreset: { normal: "normal", bold: "bold" },
+  MainAxisAlignmentPreset: { start: "start", center: "center", end: "end", spaceBetween: "spaceBetween", spaceAround: "spaceAround", spaceEvenly: "spaceEvenly" },
+  TextColor: { primary: "primary", secondary: "secondary", error: "error", text: "text" },
+  TextSize: { small: "small", medium: "medium", large: "large" },
+}
+
 export type ColumnProps = {
   spacing: number?,
   mainAxisAlignment: MainAxisAlignmentPreset?,

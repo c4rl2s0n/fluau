@@ -1,3 +1,13 @@
+## 0.1.13
+
+- Add `@LuaEnum` for host-owned enums (`enums.Name.member` in Lua).
+- Align with `fluau_codegen` 0.1.10.
+
+## 0.1.12
+
+- Docs: generated `lua_engine` uses `fluau::mlua` / `fluau::serde_json` only
+  (Rust crate re-exports). Align with `fluau_codegen` 0.1.9.
+
 ## 0.1.11
 
 - Docs/skills: dotted `@LuaWidget` names → nested `ui.layout.column`.

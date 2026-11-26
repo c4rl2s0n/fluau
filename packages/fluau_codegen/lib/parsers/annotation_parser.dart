@@ -18,7 +18,7 @@ import '../models/widget_info.dart';
 class AnnotationParser {
   AnnotationParser();
 
-  Future<List<LuaClassInfo>> parseDirectory(String dirPath) async {
+  Future<WidgetParseResult> parseDirectory(String dirPath) async {
     final dir = Directory(dirPath);
     if (!await dir.exists()) {
       throw ArgumentError('Directory does not exist: $dirPath');
@@ -30,21 +30,51 @@ class AnnotationParser {
         dartFiles.add(entity.path);
       }
     }
-    if (dartFiles.isEmpty) return [];
+    if (dartFiles.isEmpty) {
+      return const WidgetParseResult(classes: [], enums: []);
+    }
 
     final context = AnalysisContextCollection(includedPaths: [dirPath]);
     final allClasses = <LuaClassInfo>[];
+    final enumsByDart = <String, LuaEnumInfo>{};
+
     for (final filePath in dartFiles) {
       try {
-        allClasses.addAll(await _parseFile(context, filePath));
+        final parsed = await _parseFile(context, filePath);
+        allClasses.addAll(parsed.classes);
+        for (final e in parsed.enums) {
+          enumsByDart.putIfAbsent(e.dartName, () => e);
+        }
       } catch (e) {
         print('Warning: Failed to parse $filePath: $e');
       }
     }
-    return allClasses;
+
+    // Enums discovered only via widget params (no @LuaEnum) still get a table.
+    for (final luaClass in allClasses) {
+      for (final ctor in luaClass.constructors) {
+        for (final prop in ctor.parameters) {
+          if (!prop.isEnum || prop.enumValues == null) continue;
+          final dartName = prop.nonNullableDartType;
+          enumsByDart.putIfAbsent(
+            dartName,
+            () => LuaEnumInfo(
+              dartName: dartName,
+              luaName: prop.enumLuaName ?? dartName,
+              values: List<String>.from(prop.enumValues!),
+              sourceFile: prop.typeSourceFile ?? '',
+            ),
+          );
+        }
+      }
+    }
+
+    final enums = enumsByDart.values.toList()
+      ..sort((a, b) => a.luaName.compareTo(b.luaName));
+    return WidgetParseResult(classes: allClasses, enums: enums);
   }
 
-  Future<List<LuaClassInfo>> _parseFile(
+  Future<({List<LuaClassInfo> classes, List<LuaEnumInfo> enums})> _parseFile(
     AnalysisContextCollection context,
     String filePath,
   ) async {
@@ -52,7 +82,7 @@ class AnnotationParser {
     final result = await session.getResolvedLibrary(filePath);
     if (result is! ResolvedLibraryResult) {
       print('Warning: Could not resolve library for $filePath');
-      return [];
+      return (classes: <LuaClassInfo>[], enums: <LuaEnumInfo>[]);
     }
 
     final classes = <LuaClassInfo>[];
@@ -60,7 +90,53 @@ class AnnotationParser {
       final luaClass = _parseClass(element, filePath);
       if (luaClass != null) classes.add(luaClass);
     }
-    return classes;
+
+    final enums = <LuaEnumInfo>[];
+    for (final element in result.element.enums) {
+      final info = _parseAnnotatedEnum(element, filePath);
+      if (info != null) enums.add(info);
+    }
+    return (classes: classes, enums: enums);
+  }
+
+  LuaEnumInfo? _parseAnnotatedEnum(EnumElement element, String sourceFile) {
+    String? luaName;
+    var hasAnno = false;
+    for (final annotation in element.metadata.annotations) {
+      final constant = annotation.computeConstantValue();
+      final typeName = constant?.type?.getDisplayString();
+      if (typeName == 'LuaEnum') {
+        hasAnno = true;
+        final namedArgs = _getAnnotationNamedArgs(constant);
+        luaName = namedArgs['name'] as String?;
+        break;
+      }
+    }
+    if (!hasAnno) return null;
+
+    final dartName = element.name ?? '';
+    if (dartName.isEmpty) return null;
+    final values = _enumValuesFromElement(element);
+    if (values.isEmpty) return null;
+
+    return LuaEnumInfo(
+      dartName: dartName,
+      luaName: luaName ?? dartName,
+      values: values,
+      sourceFile: sourceFile,
+    );
+  }
+
+  String? _luaEnumName(EnumElement element) {
+    for (final annotation in element.metadata.annotations) {
+      final constant = annotation.computeConstantValue();
+      final typeName = constant?.type?.getDisplayString();
+      if (typeName == 'LuaEnum') {
+        final namedArgs = _getAnnotationNamedArgs(constant);
+        return (namedArgs['name'] as String?) ?? element.name;
+      }
+    }
+    return element.name;
   }
 
   LuaClassInfo? _parseClass(ClassElement classElement, String sourceFile) {
@@ -199,9 +275,11 @@ class AnnotationParser {
 
     final typeElement = param.type.element;
 
+    String? enumLuaName;
     if (typeElement is EnumElement) {
       isEnum = true;
-      enumValues = _getEnumValues(param.type);
+      enumValues = _enumValuesFromElement(typeElement);
+      enumLuaName = _luaEnumName(typeElement);
       typeSourceFile = _elementSourcePath(typeElement);
     }
 
@@ -298,6 +376,7 @@ class AnnotationParser {
       isDataClass: isDataClass,
       isEnum: isEnum,
       enumValues: enumValues,
+      enumLuaName: enumLuaName,
       typeSourceFile: typeSourceFile,
       nestedClassName: nestedClassName,
     );
@@ -425,6 +504,10 @@ class AnnotationParser {
   List<String> _getEnumValues(DartType type) {
     final element = type.element;
     if (element is! EnumElement) return [];
+    return _enumValuesFromElement(element);
+  }
+
+  List<String> _enumValuesFromElement(EnumElement element) {
     try {
       final constants =
           element.fields.where((f) => f.isConst && f.isEnumConstant);

@@ -1,5 +1,37 @@
 /// Data models for the Lua plugin code generator.
 
+/// Host Dart enum exposed to Lua (`enums.<luaName>.member` + string union type).
+class LuaEnumInfo {
+  /// Dart enum type name (e.g. `TextSize`).
+  final String dartName;
+
+  /// Lua type / `enums` table key (from `@LuaEnum(name:)` or [dartName]).
+  final String luaName;
+
+  /// Wire / member names (Dart enum constant names).
+  final List<String> values;
+
+  final String sourceFile;
+
+  const LuaEnumInfo({
+    required this.dartName,
+    required this.luaName,
+    required this.values,
+    required this.sourceFile,
+  });
+}
+
+/// Result of scanning widget / data / enum annotations.
+class WidgetParseResult {
+  final List<LuaClassInfo> classes;
+  final List<LuaEnumInfo> enums;
+
+  const WidgetParseResult({
+    required this.classes,
+    required this.enums,
+  });
+}
+
 /// One generative constructor exposed to Lua.
 class LuaConstructorInfo {
   /// Dart constructor name; empty string = unnamed.
@@ -107,6 +139,10 @@ class PropertyInfo {
   final bool isDataClass;
   final bool isEnum;
   final List<String>? enumValues;
+
+  /// Lua type name for this enum (`@LuaEnum(name:)` or Dart type name).
+  final String? enumLuaName;
+
   final String? typeSourceFile;
   final String? nestedClassName;
 
@@ -138,6 +174,7 @@ class PropertyInfo {
     this.isDataClass = false,
     this.isEnum = false,
     this.enumValues,
+    this.enumLuaName,
     this.typeSourceFile,
     this.nestedClassName,
   });

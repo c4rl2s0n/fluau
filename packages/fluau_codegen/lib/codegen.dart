@@ -91,7 +91,7 @@ void _printUsage() {
   print('');
   print('Writes: widget_serializers.g.dart, lua_engine.rs,');
   print('ui.d.luau, capability *.g.dart parts, capabilities.d.luau.');
-  print('Also ensures `pub mod lua_engine;` in lib.rs and Cargo mlua/serde_json.');
+  print('Also ensures `pub mod lua_engine;` in lib.rs (lua_engine uses fluau::mlua / fluau::serde_json).');
 }
 
 class _CliArgs {
@@ -277,7 +277,9 @@ Future<void> generateWidgets({
 
   print('Analyzing Dart files...');
   final parser = AnnotationParser();
-  final classes = await parser.parseDirectory(absoluteInputDir);
+  final parsed = await parser.parseDirectory(absoluteInputDir);
+  final classes = parsed.classes;
+  final enums = parsed.enums;
 
   print('Found ${classes.length} Lua classes:');
   for (final luaClass in classes) {
@@ -287,9 +289,15 @@ Future<void> generateWidgets({
       '-> Lua: ${luaClass.luaName}',
     );
   }
+  if (enums.isNotEmpty) {
+    print('Found ${enums.length} Lua enums:');
+    for (final e in enums) {
+      print('  - ${e.dartName} -> enums.${e.luaName}');
+    }
+  }
   print('');
 
-  if (classes.isEmpty) {
+  if (classes.isEmpty && enums.isEmpty) {
     print(
       'No Lua classes found. Make sure your classes have '
       '@LuaWidget or @LuaData annotations.',
@@ -299,7 +307,7 @@ Future<void> generateWidgets({
 
   print('Generating Rust code...');
   final rustGenerator = RustGenerator();
-  final rustCode = rustGenerator.generateModule(classes);
+  final rustCode = rustGenerator.generateModule(classes, enums: enums);
 
   await Directory(absoluteRust).create(recursive: true);
   final rustFile = File(path.join(absoluteRust, 'lua_engine.rs'));
@@ -307,7 +315,6 @@ Future<void> generateWidgets({
   print('  Written: ${rustFile.path}');
 
   await _ensureLibRsMod(absoluteRust);
-  await _ensureCargoDeps(absoluteRust);
   await _retireLegacyApiLua(absoluteRust);
 
   print('Generating Dart code...');
@@ -325,7 +332,7 @@ Future<void> generateWidgets({
 
   print('Generating Luau stubs...');
   final luauGenerator = LuauStubGenerator();
-  final luauCode = luauGenerator.generate(classes);
+  final luauCode = luauGenerator.generate(classes, enums: enums);
 
   await Directory(absoluteLuau).create(recursive: true);
   final luauFile = File(path.join(absoluteLuau, 'ui.d.luau'));
@@ -373,50 +380,6 @@ Future<void> _ensureLibRsMod(String rustSrcDir) async {
   lines.insert(insertAt, modLine);
   await libRs.writeAsString(lines.join('\n'));
   print('  Added `$modLine` to ${libRs.path}');
-}
-
-/// Best-effort: ensure `mlua` (luau) + `serde_json` in the host Cargo.toml.
-Future<void> _ensureCargoDeps(String rustSrcDir) async {
-  // rust-out is typically <crate>/src → Cargo.toml is parent.
-  final cargoToml = File(path.join(path.dirname(rustSrcDir), 'Cargo.toml'));
-  if (!await cargoToml.exists()) {
-    print('  Skipped Cargo deps: ${cargoToml.path} not found');
-    return;
-  }
-
-  var content = await cargoToml.readAsString();
-  var changed = false;
-
-  if (!RegExp(r'^\s*serde_json\s*=', multiLine: true).hasMatch(content)) {
-    content = _insertCargoDep(content, 'serde_json = "1.0"');
-    changed = true;
-  }
-
-  if (!RegExp(r'^\s*mlua\s*=', multiLine: true).hasMatch(content)) {
-    content = _insertCargoDep(
-      content,
-      'mlua = { version = "0.10", features = ["luau", "serialize", "send"] }',
-    );
-    changed = true;
-  }
-
-  if (changed) {
-    await cargoToml.writeAsString(content);
-    print('  Ensured mlua / serde_json in ${cargoToml.path}');
-  } else {
-    print('  Cargo.toml already has mlua / serde_json');
-  }
-}
-
-String _insertCargoDep(String cargoToml, String depLine) {
-  final depsHeader = RegExp(r'^\[dependencies\]\s*$', multiLine: true);
-  final match = depsHeader.firstMatch(cargoToml);
-  if (match == null) {
-    return '$cargoToml\n[dependencies]\n$depLine\n';
-  }
-  final insertAt = match.end;
-  return '${cargoToml.substring(0, insertAt)}\n$depLine'
-      '${cargoToml.substring(insertAt)}';
 }
 
 /// Stop regenerating orphan `api/lua.rs`. If present, replace with a pointer

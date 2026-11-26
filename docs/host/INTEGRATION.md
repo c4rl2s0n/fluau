@@ -70,8 +70,10 @@ Plugin FRB entry points may call the same `ensure` again; it stays idempotent.
 `bind(LuaPluginBridge.instance)` — that reads the unbound singleton and throws
 `StateError`. After a correct bind, `instance` forwards to FRB.
 
-**Versions:** Dart `fluau: ^0.1.11` with crates.io `fluau = "0.1"` (currently
-0.1.0) is supported — patch numbers need not match within `0.1`.
+**Versions:** Dart `fluau: ^0.1.13` with crates.io `fluau = "0.1"` (currently
+0.1.0) is supported — patch numbers need not match within `0.1`. The Rust
+crate re-exports `mlua` / `serde_json` for generated `lua_engine` and optional
+HostAPI use (`fluau::mlua`, `fluau::serde_json`).
 
 <!-- fluau:include-begin id="bootstrap-bind" -->
 ### Bootstrap and bind

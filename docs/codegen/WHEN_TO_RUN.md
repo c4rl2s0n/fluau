@@ -19,8 +19,9 @@ dart run fluau_codegen
 Writes `dart.lua_root/widget_serializers.g.dart` (default `lib/fluau/`),
 self-contained `lua_engine.rs` (`register_ui_catalog` / `setup_lua_api`),
 `ui.d.luau`, capability `*.g.dart` parts, and `capabilities.d.luau`. Also
-ensures `pub mod lua_engine;` in `lib.rs` and Cargo `mlua` / `serde_json`.
-Does **not** overwrite stamped `api/fluau.rs`. Call
+ensures `pub mod lua_engine;` in `lib.rs`. Generated Rust uses
+`fluau::mlua` / `fluau::serde_json` (host needs only `fluau`). Does **not**
+overwrite stamped `api/fluau.rs`. Call
 `crate::lua_engine::register_ui_catalog()` from `#[frb(init)]` (or pass
 `ui_setup` to `fluau::setup`).
 

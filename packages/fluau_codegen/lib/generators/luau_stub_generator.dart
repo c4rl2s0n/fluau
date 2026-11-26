@@ -8,7 +8,10 @@ import '../models/widget_info.dart';
 /// Generates Luau type stubs for the `ui` widget catalog.
 class LuauStubGenerator {
   /// Generate a complete `ui.d.luau` definition file.
-  String generate(List<LuaClassInfo> classes) {
+  String generate(
+    List<LuaClassInfo> classes, {
+    List<LuaEnumInfo> enums = const [],
+  }) {
     final buffer = StringBuffer();
     _writeHeader(buffer);
 
@@ -16,7 +19,9 @@ class LuauStubGenerator {
     buffer.writeln('export type Widget = string');
     buffer.writeln();
 
-    _writeEnumAliases(buffer, classes);
+    final catalogEnums = _mergeEnums(classes, enums);
+    _writeEnumAliases(buffer, catalogEnums);
+    _writeEnumsDeclare(buffer, catalogEnums);
     _writeDataClassTypes(buffer, classes.where((c) => !c.isWidget).toList());
     _writeWidgetPropTypes(buffer, classes.where((c) => c.isWidget).toList());
     _writeUiDeclare(buffer, classes.where((c) => c.isWidget).toList());
@@ -30,25 +35,51 @@ class LuauStubGenerator {
     buffer.writeln();
   }
 
-  void _writeEnumAliases(StringBuffer buffer, List<LuaClassInfo> classes) {
-    final enums = <String, List<String>>{};
+  List<LuaEnumInfo> _mergeEnums(
+    List<LuaClassInfo> classes,
+    List<LuaEnumInfo> enums,
+  ) {
+    final byLua = <String, LuaEnumInfo>{};
+    for (final e in enums) {
+      byLua[e.luaName] = e;
+    }
     for (final luaClass in classes) {
       for (final ctor in luaClass.constructors) {
         for (final prop in ctor.parameters) {
           if (!prop.isEnum || prop.enumValues == null) continue;
-          final typeName = prop.nonNullableDartType;
-          enums.putIfAbsent(typeName, () => List<String>.from(prop.enumValues!));
+          final luaName = prop.enumLuaName ?? prop.nonNullableDartType;
+          byLua.putIfAbsent(
+            luaName,
+            () => LuaEnumInfo(
+              dartName: prop.nonNullableDartType,
+              luaName: luaName,
+              values: List<String>.from(prop.enumValues!),
+              sourceFile: prop.typeSourceFile ?? '',
+            ),
+          );
         }
       }
     }
+    return byLua.values.toList()..sort((a, b) => a.luaName.compareTo(b.luaName));
+  }
 
+  void _writeEnumAliases(StringBuffer buffer, List<LuaEnumInfo> enums) {
     if (enums.isEmpty) return;
-
-    final names = enums.keys.toList()..sort();
-    for (final name in names) {
-      final union = enums[name]!.map((v) => '"$v"').join(' | ');
-      buffer.writeln('export type $name = $union');
+    for (final e in enums) {
+      final union = e.values.map((v) => '"$v"').join(' | ');
+      buffer.writeln('export type ${e.luaName} = $union');
     }
+    buffer.writeln();
+  }
+
+  void _writeEnumsDeclare(StringBuffer buffer, List<LuaEnumInfo> enums) {
+    if (enums.isEmpty) return;
+    buffer.writeln('declare enums: {');
+    for (final e in enums) {
+      final members = e.values.map((v) => '$v: "$v"').join(', ');
+      buffer.writeln('  ${e.luaName}: { $members },');
+    }
+    buffer.writeln('}');
     buffer.writeln();
   }
 
@@ -141,7 +172,7 @@ class LuauStubGenerator {
     if (prop.isChildWidget) return 'Widget';
     if (prop.isChildList) return '{Widget}';
     if (prop.isStringList) return '{string}';
-    if (prop.isEnum) return prop.nonNullableDartType;
+    if (prop.isEnum) return prop.enumLuaName ?? prop.nonNullableDartType;
     if (prop.isDataClass) {
       return prop.nestedClassName ?? prop.nonNullableDartType;
     }

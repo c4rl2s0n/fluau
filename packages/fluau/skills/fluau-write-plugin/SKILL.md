@@ -18,6 +18,7 @@ description: >-
 * `ui.*` constructors only exist after the host runs `fluau_codegen` and registers the catalog (`register_ui_catalog()` or `SetupOptions.ui_setup`) — see `fluau-ui-catalog` / `fluau-integrate-host`.
 * Declare host API needs in `plugin.yaml`. Use the compact schema below; host entries may be a string id or a single-key map (`http: { domains: [...] }`, `optional: true`) — do not invent undocumented keys.
 * Prefer the minimal example below (or the monorepo `counter` package) over inventing a new layout.
+* Prefer `enums.TextSize.large` (etc.) over raw strings when the host catalog exposes enums; plain strings still work.
 * Stay inside the host UI vocabulary; new controls require a host catalog change (`fluau-ui-catalog`), not a plugin-local hack.
 
 Docs: [Plugin overview](https://github.com/c4rl2s0n/fluau/blob/main/docs/plugin/OVERVIEW.md),
@@ -65,7 +66,7 @@ function render()
   return ui.Column {
     spacing = 8,
     children = {
-      ui.Text { text = "Hello fluau", size = "large" },
+      ui.Text { text = "Hello fluau", size = enums.TextSize.large },
       ui.Button { text = "Ping", onPressed = { type = "ping" } },
     },
   }

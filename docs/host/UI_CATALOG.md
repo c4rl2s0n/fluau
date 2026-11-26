@@ -60,11 +60,21 @@ If you pass `ui_setup: None`, call `register_ui_catalog()` **after** `setup`.
 Dotted names nest Rust/`ui` tables and Luau stubs; the JSON `type` id (and
 Dart registry key) stays the full string (`"layout.column"`).
 
+### Enums
+
+Host-owned Dart enums on ctor params become Luau string unions **and** an
+`enums.<Name>` value table (e.g. `size = enums.TextSize.large`). Wire values
+remain strings (`"large"`). Optional `@LuaEnum(name: '…')` renames the Lua
+type/table or emits an enum not yet used on a widget.
+
+Flutter / third-party enums cannot be annotated — wrap them in a host preset
+(e.g. `CrossAxisAlignmentPreset`) and map in `build`.
+
 ### Install
 
 ```yaml
 dev_dependencies:
-  fluau_codegen: ^0.1.8
+  fluau_codegen: ^0.1.10
 ```
 
 ```bash
@@ -73,8 +83,10 @@ dart run fluau_codegen
 
 Emits `lib/fluau/widget_serializers.g.dart` (or `dart.lua_root`),
 `lua_engine.rs` (`setup_lua_api` + `register_ui_catalog`), and `ui.d.luau`.
-Codegen also best-effort adds `pub mod lua_engine;` to `lib.rs` and ensures
-Cargo `mlua` / `serde_json`. It does **not** overwrite stamped `api/fluau.rs`.
+Codegen also best-effort adds `pub mod lua_engine;` to `lib.rs`. Generated
+Rust imports `fluau::mlua` / `fluau::serde_json` — the host only needs the
+`fluau` crate (default `runtime`); no separate `mlua` / `serde_json` Cargo
+entries for the catalog. It does **not** overwrite stamped `api/fluau.rs`.
 
 ### Wire Rust (required one-liner)
 

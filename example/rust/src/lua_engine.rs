@@ -4,8 +4,8 @@
 // Call `register_ui_catalog()` once at process start (e.g. #[frb(init)]).
 // Or pass `ui_setup: Some(crate::lua_engine::setup_lua_api)` to fluau::setup.
 
-use mlua::{Function, Lua, Result, Table, Value};
-use serde_json::{json, Value as JsonValue, Map as JsonMap};
+use fluau::mlua::{Function, Lua, Result, Table, Value};
+use fluau::serde_json::{json, Value as JsonValue, Map as JsonMap};
 
 
 /// Register this catalog with fluau (idempotent).
@@ -34,7 +34,7 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
         let mainAxisAlignment: Option<String> = args.get("mainAxisAlignment").ok();
         if let Some(ref v) = mainAxisAlignment {
              if !["start", "center", "end", "spaceBetween", "spaceAround", "spaceEvenly"].contains(&v.as_str()) {
-                 return Err(mlua::Error::runtime("Column: invalid mainAxisAlignment value"));
+                 return Err(fluau::mlua::Error::runtime("Column: invalid mainAxisAlignment value"));
              }
             map.insert("mainAxisAlignment".to_string(), json!(v));
         }
@@ -43,7 +43,7 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
         let crossAxisAlignment: Option<String> = args.get("crossAxisAlignment").ok();
         if let Some(ref v) = crossAxisAlignment {
              if !["start", "center", "end", "stretch", "baseline"].contains(&v.as_str()) {
-                 return Err(mlua::Error::runtime("Column: invalid crossAxisAlignment value"));
+                 return Err(fluau::mlua::Error::runtime("Column: invalid crossAxisAlignment value"));
              }
             map.insert("crossAxisAlignment".to_string(), json!(v));
         }
@@ -55,7 +55,7 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
                 for pair in table.pairs::<Value, Value>() {
                     if let Ok((_, child_value)) = pair {
                         if let Value::String(child_str) = child_value {
-                            if let Ok(parsed) = serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {
+                            if let Ok(parsed) = fluau::serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {
                                 children_json.push(parsed);
                             }
                         }
@@ -65,7 +65,7 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
             }
         }
 
-        let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;
+        let json_str = fluau::serde_json::to_string(&map).map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
         Ok(Value::String(lua.create_string(&json_str)?))
     })?)?;
 
@@ -96,7 +96,7 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
             map.insert("obscure".to_string(), json!(v));
         }
 
-        let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;
+        let json_str = fluau::serde_json::to_string(&map).map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
         Ok(Value::String(lua.create_string(&json_str)?))
     })?)?;
 
@@ -115,7 +115,7 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
         if let Ok(event_value) = args.get::<Option<Value>>("onPressed") {
             if let Some(v) = event_value {
                 let event_json = fluau::json_util::lua_to_json(v)
-                    .map_err(|e| mlua::Error::runtime(e.to_string()))?;
+                    .map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
                 map.insert("onPressed".to_string(), event_json);
             }
         }
@@ -123,13 +123,13 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
         // Handle child (child widget)
         if let Ok(child_value) = args.get::<Option<Value>>("child") {
             if let Some(Value::String(child_str)) = child_value {
-                if let Ok(parsed) = serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {
+                if let Ok(parsed) = fluau::serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {
                     map.insert("child".to_string(), parsed);
                 }
             }
         }
 
-        let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;
+        let json_str = fluau::serde_json::to_string(&map).map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
         Ok(Value::String(lua.create_string(&json_str)?))
     })?)?;
 
@@ -152,7 +152,7 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
         if let Ok(event_value) = args.get::<Option<Value>>("onToggle") {
             if let Some(v) = event_value {
                 let event_json = fluau::json_util::lua_to_json(v)
-                    .map_err(|e| mlua::Error::runtime(e.to_string()))?;
+                    .map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
                 map.insert("onToggle".to_string(), event_json);
             }
         }
@@ -164,7 +164,7 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
                 for pair in table.pairs::<Value, Value>() {
                     if let Ok((_, child_value)) = pair {
                         if let Value::String(child_str) = child_value {
-                            if let Ok(parsed) = serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {
+                            if let Ok(parsed) = fluau::serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {
                                 children_json.push(parsed);
                             }
                         }
@@ -174,7 +174,7 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
             }
         }
 
-        let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;
+        let json_str = fluau::serde_json::to_string(&map).map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
         Ok(Value::String(lua.create_string(&json_str)?))
     })?)?;
 
@@ -191,7 +191,7 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
         let size: Option<String> = args.get("size").ok();
         if let Some(ref v) = size {
              if !["small", "medium", "large"].contains(&v.as_str()) {
-                 return Err(mlua::Error::runtime("Text: invalid size value"));
+                 return Err(fluau::mlua::Error::runtime("Text: invalid size value"));
              }
             map.insert("size".to_string(), json!(v));
         }
@@ -200,7 +200,7 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
         let color: Option<String> = args.get("color").ok();
         if let Some(ref v) = color {
              if !["primary", "secondary", "error", "text"].contains(&v.as_str()) {
-                 return Err(mlua::Error::runtime("Text: invalid color value"));
+                 return Err(fluau::mlua::Error::runtime("Text: invalid color value"));
              }
             map.insert("color".to_string(), json!(v));
         }
@@ -209,12 +209,12 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
         let weight: Option<String> = args.get("weight").ok();
         if let Some(ref v) = weight {
              if !["normal", "bold"].contains(&v.as_str()) {
-                 return Err(mlua::Error::runtime("Text: invalid weight value"));
+                 return Err(fluau::mlua::Error::runtime("Text: invalid weight value"));
              }
             map.insert("weight".to_string(), json!(v));
         }
 
-        let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;
+        let json_str = fluau::serde_json::to_string(&map).map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
         Ok(Value::String(lua.create_string(&json_str)?))
     })?)?;
 
@@ -239,7 +239,7 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
             map.insert("value".to_string(), json!(v));
         }
 
-        let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;
+        let json_str = fluau::serde_json::to_string(&map).map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
         Ok(Value::String(lua.create_string(&json_str)?))
     })?)?;
 
@@ -268,36 +268,80 @@ pub fn setup_lua_api(lua: &Lua) -> Result<()> {
         if let Ok(list_value) = args.get::<Option<Value>>("options") {
             if let Some(v) = list_value {
                 let list_json = fluau::json_util::lua_to_json(v)
-                    .map_err(|e| mlua::Error::runtime(e.to_string()))?;
+                    .map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
                 map.insert("options".to_string(), list_json);
             }
         }
 
-        let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;
+        let json_str = fluau::serde_json::to_string(&map).map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
         Ok(Value::String(lua.create_string(&json_str)?))
     })?)?;
 
 
     // State management functions
     ui.set("getState", lua.create_function(|_, key: String| {
-        catalog_state::get_state(&key).map_err(mlua::Error::runtime)
+        catalog_state::get_state(&key).map_err(fluau::mlua::Error::runtime)
     })?)?;
 
     ui.set("setState", lua.create_function(|_, (key, value): (String, String)| {
-        catalog_state::set_state(key, value).map_err(mlua::Error::runtime)
+        catalog_state::set_state(key, value).map_err(fluau::mlua::Error::runtime)
     })?)?;
 
     ui.set("getAllState", lua.create_function(|_, ()| {
-        catalog_state::get_all_state().map_err(mlua::Error::runtime)
+        catalog_state::get_all_state().map_err(fluau::mlua::Error::runtime)
     })?)?;
 
     // Callback registration
     ui.set("registerCallback", lua.create_function(|lua, func: Function| {
         catalog_callbacks::register_callback(lua, func)
-            .map_err(|e| mlua::Error::runtime(e.to_string()))
+            .map_err(|e| fluau::mlua::Error::runtime(e.to_string()))
     })?)?;
 
     lua.globals().set("ui", ui)?;
+
+    // Enum value tables (enums.Name.member → string)
+    let enums = lua.create_table()?;
+    {
+        let t = lua.create_table()?;
+        t.set("start", "start")?;
+        t.set("center", "center")?;
+        t.set("end", "end")?;
+        t.set("stretch", "stretch")?;
+        t.set("baseline", "baseline")?;
+        enums.set("CrossAxisAlignmentPreset", t)?;
+    }
+    {
+        let t = lua.create_table()?;
+        t.set("normal", "normal")?;
+        t.set("bold", "bold")?;
+        enums.set("FontWeightPreset", t)?;
+    }
+    {
+        let t = lua.create_table()?;
+        t.set("start", "start")?;
+        t.set("center", "center")?;
+        t.set("end", "end")?;
+        t.set("spaceBetween", "spaceBetween")?;
+        t.set("spaceAround", "spaceAround")?;
+        t.set("spaceEvenly", "spaceEvenly")?;
+        enums.set("MainAxisAlignmentPreset", t)?;
+    }
+    {
+        let t = lua.create_table()?;
+        t.set("primary", "primary")?;
+        t.set("secondary", "secondary")?;
+        t.set("error", "error")?;
+        t.set("text", "text")?;
+        enums.set("TextColor", t)?;
+    }
+    {
+        let t = lua.create_table()?;
+        t.set("small", "small")?;
+        t.set("medium", "medium")?;
+        t.set("large", "large")?;
+        enums.set("TextSize", t)?;
+    }
+    lua.globals().set("enums", enums)?;
     Ok(())
 }
 
@@ -319,7 +363,7 @@ pub fn execute_ui_script(script: &str) -> std::result::Result<String, String> {
 
 /// Inlined catalog helpers (no host `state` / `callbacks` modules required).
 mod catalog_state {
-    use serde_json::Value;
+    use fluau::serde_json::Value;
     use std::collections::HashMap;
     use std::sync::{Mutex, OnceLock};
 
@@ -338,7 +382,7 @@ mod catalog_state {
 
     pub fn set_state(key: String, value: String) -> Result<(), String> {
         let json_value: Value =
-            serde_json::from_str(&value).map_err(|e| format!("Invalid JSON: {e}"))?;
+            fluau::serde_json::from_str(&value).map_err(|e| format!("Invalid JSON: {e}"))?;
         let mut guard = store().lock().map_err(|e| e.to_string())?;
         guard.insert(key, json_value);
         Ok(())
@@ -346,12 +390,12 @@ mod catalog_state {
 
     pub fn get_all_state() -> Result<String, String> {
         let guard = store().lock().map_err(|e| e.to_string())?;
-        serde_json::to_string(&*guard).map_err(|e| e.to_string())
+        fluau::serde_json::to_string(&*guard).map_err(|e| e.to_string())
     }
 }
 
 mod catalog_callbacks {
-    use mlua::{Function, Lua, RegistryKey, Result};
+    use fluau::mlua::{Function, Lua, RegistryKey, Result};
     use std::collections::HashMap;
     use std::sync::{Mutex, OnceLock};
 
@@ -362,7 +406,7 @@ mod catalog_callbacks {
 
     pub fn register_callback(lua: &Lua, func: Function) -> Result<String> {
         let key = lua.create_registry_value(func)?;
-        let mut guard = store().lock().map_err(|e| mlua::Error::runtime(e.to_string()))?;
+        let mut guard = store().lock().map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
         guard.0 += 1;
         let id = format!("cb-{}", guard.0);
         guard.1.insert(id.clone(), key);

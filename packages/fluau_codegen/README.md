@@ -9,7 +9,7 @@ Rust UI builders, and Luau stubs aligned.
 
 ```yaml
 dev_dependencies:
-  fluau_codegen: ^0.1.8
+  fluau_codegen: ^0.1.10
 ```
 
 ## Default: generate everything
@@ -30,7 +30,8 @@ Writes:
 - self-contained `lua_engine.rs` (`register_ui_catalog` / `setup_lua_api`)
 - `ui.d.luau`, capability `*.g.dart` parts + `capabilities.d.luau`
 
-Also ensures `pub mod lua_engine;` and Cargo `mlua` / `serde_json`. Call
+Also ensures `pub mod lua_engine;` in `lib.rs`. Generated Rust imports
+`fluau::mlua` / `fluau::serde_json` (no host Cargo entries for those). Call
 `crate::lua_engine::register_ui_catalog()` from `#[frb(init)]` (or pass
 `ui_setup` to `fluau::setup`).
 

@@ -13,12 +13,13 @@ description: >-
 * Add `fluau_codegen` as a **dev_dependency**. Widgets (and capabilities) are generated with the **CLI only** — do **not** use `build_runner` for fluau, and do **not** hand-roll a Dart registry.
 * Annotate Flutter `Widget` subclasses (typically `StatelessWidget`) with `@LuaWidget` only. The **generative constructor parameters** are the Lua API. `@LuaProperty` / `@LuaCallback` / `@LuaChildren` on **ctor params** are optional renames only. Field-only annotations are ignored. `Key` / `super.key` is skipped.
 * Multiple public generative constructors are all exposed: unnamed → `ui.Text`; named `styled` → `ui.Text_styled`. Dotted names (`layout.column`) nest as `ui.layout.column`; JSON type id stays `"layout.column"`.
+* Host Dart enums → Luau unions + `enums.Name.member` (wire strings). Optional `@LuaEnum(name:)` for rename. Do not annotate Flutter SDK enums — use host presets.
 * Nested children use `Widget?` / `List<Widget>?` (placed in the tree as-is).
 * Serializers are a **standalone** library under `dart.lua_root` (default `lib/fluau/widget_serializers.g.dart`) — import it.
 * Always pass generated `LuaWidgetRegistry.buildFromMap` into `LuaPlugin` / `LuaPluginView` as `buildWidget`.
 * **Architecture:** Luau `ui.*` → generated Rust builders (JSON string) → Dart `LuaWidgetRegistry` (JSON→Widget). Builders validate; they are not a duplicate Flutter tree.
 * **Register once:** `let _ = crate::lua_engine::register_ui_catalog();` from `#[frb(init)]`, **or** `SetupOptions.ui_setup: Some(lua_engine::setup_lua_api)`. Separable from HostAPIs. `setup` clears UI — call `register_ui_catalog` after setup when `ui_setup` is `None`. **Without it, Lua gets an empty `ui` table.**
-* Codegen owns one Rust file (`lua_engine.rs`); does not overwrite stamped `api/fluau.rs`.
+* Codegen owns one Rust file (`lua_engine.rs`); imports `fluau::mlua` / `fluau::serde_json` — host needs only the `fluau` crate for the catalog. Does not overwrite stamped `api/fluau.rs`.
 * Only run `flutter_rust_bridge_codegen generate` when FRB-exposed APIs changed — not for every widget tweak.
 
 Docs: [UI catalog](https://github.com/c4rl2s0n/fluau/blob/main/docs/host/UI_CATALOG.md),
@@ -30,7 +31,7 @@ Docs: [UI catalog](https://github.com/c4rl2s0n/fluau/blob/main/docs/host/UI_CATA
 
 ```yaml
 dev_dependencies:
-  fluau_codegen: ^0.1.8
+  fluau_codegen: ^0.1.10
 ```
 
 ### Generate (default: widgets + capabilities)

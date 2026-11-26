@@ -25,7 +25,7 @@ on crates.io (and typically `fluau_codegen` on pub.dev for UI/capability generat
 
 ```yaml
 dependencies:
-  fluau: ^0.1.11
+  fluau: ^0.1.13
 ```
 
 Also depend on the Rust crate [`fluau`](https://crates.io/crates/fluau)

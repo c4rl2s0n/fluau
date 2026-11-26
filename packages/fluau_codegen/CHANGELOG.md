@@ -1,3 +1,13 @@
+## 0.1.10
+
+- Emit `enums.<Name>` value tables (Rust + Luau) for host Dart enums; optional
+  `@LuaEnum(name:)` rename. Wire values remain strings.
+
+## 0.1.9
+
+- Generated `lua_engine` imports `fluau::mlua` / `fluau::serde_json` (no host
+  Cargo `mlua`/`serde_json` required for the catalog). Dropped `_ensureCargoDeps`.
+
 ## 0.1.8
 
 - Dotted `@LuaWidget` names nest as `ui.layout.column` (Rust tables + Luau

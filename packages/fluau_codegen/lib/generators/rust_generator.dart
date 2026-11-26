@@ -9,7 +9,10 @@ import '../models/widget_info.dart';
 
 /// Main Rust generator
 class RustGenerator {
-  String generateModule(List<LuaClassInfo> classes) {
+  String generateModule(
+    List<LuaClassInfo> classes, {
+    List<LuaEnumInfo> enums = const [],
+  }) {
     final buffer = StringBuffer();
 
     _writeHeader(buffer);
@@ -19,7 +22,7 @@ class RustGenerator {
     _writeRegisterUiCatalog(buffer);
     buffer.writeln();
 
-    _writeLuaApiSetup(buffer, classes);
+    _writeLuaApiSetup(buffer, classes, enums);
     buffer.writeln();
 
     _writeExecuteFunction(buffer);
@@ -44,9 +47,12 @@ class RustGenerator {
   }
 
   void _writeImports(StringBuffer buffer) {
-    buffer.writeln('use mlua::{Function, Lua, Result, Table, Value};');
+    // Via fluau re-exports — host needs only `fluau` (runtime), not direct mlua/serde_json.
     buffer.writeln(
-      'use serde_json::{json, Value as JsonValue, Map as JsonMap};',
+      'use fluau::mlua::{Function, Lua, Result, Table, Value};',
+    );
+    buffer.writeln(
+      'use fluau::serde_json::{json, Value as JsonValue, Map as JsonMap};',
     );
     buffer.writeln();
   }
@@ -66,7 +72,11 @@ class RustGenerator {
     buffer.writeln('}');
   }
 
-  void _writeLuaApiSetup(StringBuffer buffer, List<LuaClassInfo> classes) {
+  void _writeLuaApiSetup(
+    StringBuffer buffer,
+    List<LuaClassInfo> classes,
+    List<LuaEnumInfo> enums,
+  ) {
     buffer.writeln(
       '/// Install `ui.*` widget constructors into a Lua VM (session hook).',
     );
@@ -84,7 +94,7 @@ class RustGenerator {
     buffer.writeln('    // State management functions');
     buffer.writeln('    ui.set("getState", lua.create_function(|_, key: String| {');
     buffer.writeln(
-      '        catalog_state::get_state(&key).map_err(mlua::Error::runtime)',
+      '        catalog_state::get_state(&key).map_err(fluau::mlua::Error::runtime)',
     );
     buffer.writeln('    })?)?;');
     buffer.writeln();
@@ -92,13 +102,13 @@ class RustGenerator {
       '    ui.set("setState", lua.create_function(|_, (key, value): (String, String)| {',
     );
     buffer.writeln(
-      '        catalog_state::set_state(key, value).map_err(mlua::Error::runtime)',
+      '        catalog_state::set_state(key, value).map_err(fluau::mlua::Error::runtime)',
     );
     buffer.writeln('    })?)?;');
     buffer.writeln();
     buffer.writeln('    ui.set("getAllState", lua.create_function(|_, ()| {');
     buffer.writeln(
-      '        catalog_state::get_all_state().map_err(mlua::Error::runtime)',
+      '        catalog_state::get_all_state().map_err(fluau::mlua::Error::runtime)',
     );
     buffer.writeln('    })?)?;');
 
@@ -110,11 +120,28 @@ class RustGenerator {
     buffer.writeln(
       '        catalog_callbacks::register_callback(lua, func)',
     );
-    buffer.writeln('            .map_err(|e| mlua::Error::runtime(e.to_string()))');
+    buffer.writeln('            .map_err(|e| fluau::mlua::Error::runtime(e.to_string()))');
     buffer.writeln('    })?)?;');
 
     buffer.writeln();
     buffer.writeln('    lua.globals().set("ui", ui)?;');
+
+    if (enums.isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln('    // Enum value tables (enums.Name.member → string)');
+      buffer.writeln('    let enums = lua.create_table()?;');
+      for (final e in enums) {
+        buffer.writeln('    {');
+        buffer.writeln('        let t = lua.create_table()?;');
+        for (final v in e.values) {
+          buffer.writeln('        t.set("$v", "$v")?;');
+        }
+        buffer.writeln('        enums.set("${e.luaName}", t)?;');
+        buffer.writeln('    }');
+      }
+      buffer.writeln('    lua.globals().set("enums", enums)?;');
+    }
+
     buffer.writeln('    Ok(())');
     buffer.writeln('}');
 
@@ -177,7 +204,7 @@ class RustGenerator {
     }
 
     buffer.writeln(
-      '        let json_str = serde_json::to_string(&map).map_err(|e| mlua::Error::runtime(e.to_string()))?;',
+      '        let json_str = fluau::serde_json::to_string(&map).map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;',
     );
     buffer.writeln(
       '        Ok(Value::String(lua.create_string(&json_str)?))',
@@ -209,7 +236,7 @@ class RustGenerator {
         '                let event_json = fluau::json_util::lua_to_json(v)',
       );
       buffer.writeln(
-        '                    .map_err(|e| mlua::Error::runtime(e.to_string()))?;',
+        '                    .map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;',
       );
       buffer.writeln(
         '                map.insert("$propName".to_string(), event_json);',
@@ -229,7 +256,7 @@ class RustGenerator {
         '                        if let Value::String(child_str) = child_value {',
       );
       buffer.writeln(
-        '                            if let Ok(parsed) = serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {',
+        '                            if let Ok(parsed) = fluau::serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {',
       );
       buffer.writeln(
         '                                children_json.push(parsed);',
@@ -253,7 +280,7 @@ class RustGenerator {
         '                let list_json = fluau::json_util::lua_to_json(v)',
       );
       buffer.writeln(
-        '                    .map_err(|e| mlua::Error::runtime(e.to_string()))?;',
+        '                    .map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;',
       );
       buffer.writeln(
         '                map.insert("$propName".to_string(), list_json);',
@@ -269,7 +296,7 @@ class RustGenerator {
         '            if let Some(Value::String(child_str)) = child_value {',
       );
       buffer.writeln(
-        '                if let Ok(parsed) = serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {',
+        '                if let Ok(parsed) = fluau::serde_json::from_str::<JsonValue>(&child_str.to_string_lossy()) {',
       );
       buffer.writeln(
         '                    map.insert("$propName".to_string(), parsed);',
@@ -357,7 +384,7 @@ class RustGenerator {
       '$indent if ![$validValues].contains(&$rustExpr.as_str()) {',
     );
     buffer.writeln(
-      '$indent     return Err(mlua::Error::runtime("$luaName: invalid $displayName value"));',
+      '$indent     return Err(fluau::mlua::Error::runtime("$luaName: invalid $displayName value"));',
     );
     buffer.writeln('$indent }');
   }
@@ -390,7 +417,7 @@ class RustGenerator {
     buffer.writeln(r'''
 /// Inlined catalog helpers (no host `state` / `callbacks` modules required).
 mod catalog_state {
-    use serde_json::Value;
+    use fluau::serde_json::Value;
     use std::collections::HashMap;
     use std::sync::{Mutex, OnceLock};
 
@@ -409,7 +436,7 @@ mod catalog_state {
 
     pub fn set_state(key: String, value: String) -> Result<(), String> {
         let json_value: Value =
-            serde_json::from_str(&value).map_err(|e| format!("Invalid JSON: {e}"))?;
+            fluau::serde_json::from_str(&value).map_err(|e| format!("Invalid JSON: {e}"))?;
         let mut guard = store().lock().map_err(|e| e.to_string())?;
         guard.insert(key, json_value);
         Ok(())
@@ -417,12 +444,12 @@ mod catalog_state {
 
     pub fn get_all_state() -> Result<String, String> {
         let guard = store().lock().map_err(|e| e.to_string())?;
-        serde_json::to_string(&*guard).map_err(|e| e.to_string())
+        fluau::serde_json::to_string(&*guard).map_err(|e| e.to_string())
     }
 }
 
 mod catalog_callbacks {
-    use mlua::{Function, Lua, RegistryKey, Result};
+    use fluau::mlua::{Function, Lua, RegistryKey, Result};
     use std::collections::HashMap;
     use std::sync::{Mutex, OnceLock};
 
@@ -433,7 +460,7 @@ mod catalog_callbacks {
 
     pub fn register_callback(lua: &Lua, func: Function) -> Result<String> {
         let key = lua.create_registry_value(func)?;
-        let mut guard = store().lock().map_err(|e| mlua::Error::runtime(e.to_string()))?;
+        let mut guard = store().lock().map_err(|e| fluau::mlua::Error::runtime(e.to_string()))?;
         guard.0 += 1;
         let id = format!("cb-{}", guard.0);
         guard.1.insert(id.clone(), key);
